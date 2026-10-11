@@ -1,0 +1,1472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProTanki Commander: Architecture</title>
+<style>
+:root{
+  --bg:#0d1117; --bg2:#11161f; --panel:#161c27; --panel2:#1c2432; --border:#2a3446;
+  --text:#e6ebf2; --muted:#9aa6b8; --faint:#6b778a;
+  --accent:#5fd068; --accent-dim:#1f3d25; --info:#58a6ff; --info-dim:#14304f;
+  --warn:#f2b84b; --warn-dim:#3d2f12; --danger:#ff5f56; --danger-dim:#3d1716;
+  --purple:#b48cff; --purple-dim:#2a1f45;
+  --code-bg:#0a0e15; --mono:ui-monospace,"Cascadia Code","JetBrains Mono",Consolas,monospace;
+  --sans:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f6f8fb; --bg2:#eef2f7; --panel:#ffffff; --panel2:#f3f6fa; --border:#d6dde8;
+    --text:#152030; --muted:#566377; --faint:#8592a6;
+    --accent:#1f9d35; --accent-dim:#dff3e2; --info:#1f6fd1; --info-dim:#e1ecfb;
+    --warn:#a86b00; --warn-dim:#fbf0d9; --danger:#c9302c; --danger-dim:#fbe3e2;
+    --purple:#6b3fd1; --purple-dim:#ece5fb; --code-bg:#f2f5f9;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f6f8fb; --bg2:#eef2f7; --panel:#ffffff; --panel2:#f3f6fa; --border:#d6dde8;
+  --text:#152030; --muted:#566377; --faint:#8592a6;
+  --accent:#1f9d35; --accent-dim:#dff3e2; --info:#1f6fd1; --info-dim:#e1ecfb;
+  --warn:#a86b00; --warn-dim:#fbf0d9; --danger:#c9302c; --danger-dim:#fbe3e2;
+  --purple:#6b3fd1; --purple-dim:#ece5fb; --code-bg:#f2f5f9;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+body{margin:0;background:var(--bg);color:var(--text);font:15.5px/1.65 var(--sans)}
+a{color:var(--info);text-decoration:none} a:hover{text-decoration:underline}
+.layout{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:100vh}
+nav.toc{position:sticky;top:0;height:100vh;overflow:auto;background:var(--bg2);border-right:1px solid var(--border);padding:22px 14px 40px}
+nav.toc .brand{font-weight:700;font-size:15px;margin:0 8px 4px;letter-spacing:.2px}
+nav.toc .sub{font-size:12px;color:var(--faint);margin:0 8px 16px}
+nav.toc a{display:block;color:var(--muted);font-size:13.5px;padding:5px 10px;border-radius:6px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--panel);color:var(--text);text-decoration:none}
+nav.toc a.active{color:var(--text);background:var(--panel);border-left-color:var(--accent)}
+nav.toc .grp{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--faint);margin:16px 10px 4px}
+main{padding:40px clamp(16px,4vw,64px) 120px;max-width:1180px}
+header.hero{border:1px solid var(--border);background:linear-gradient(135deg,var(--panel),var(--panel2));border-radius:16px;padding:32px clamp(18px,3vw,36px);margin-bottom:36px}
+.hero h1{margin:0 0 6px;font-size:clamp(26px,3.4vw,38px);line-height:1.2}
+.hero p.lead{color:var(--muted);font-size:17px;margin:0 0 22px;max-width:820px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.kpi b{display:block;font-size:22px;color:var(--accent);font-variant-numeric:tabular-nums}
+.kpi span{font-size:12.5px;color:var(--muted)}
+section{margin:0 0 56px}
+h2{font-size:25px;margin:0 0 6px;padding-top:6px;display:flex;gap:12px;align-items:baseline}
+h2 .n{color:var(--accent);font-family:var(--mono);font-size:16px}
+h2 + .kicker{color:var(--muted);margin:0 0 18px}
+h3{font-size:18px;margin:28px 0 8px}
+h4{font-size:15px;margin:18px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+p{margin:0 0 12px}
+ul,ol{margin:0 0 14px;padding-left:22px} li{margin:3px 0}
+code{font-family:var(--mono);font-size:.88em;background:var(--panel2);border:1px solid var(--border);padding:1px 5px;border-radius:5px}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow:auto;font:13px/1.55 var(--mono);margin:8px 0 16px;position:relative}
+pre code{background:none;border:0;padding:0;font-size:inherit}
+pre .c{color:var(--faint)} pre .k{color:var(--purple)} pre .s{color:var(--accent)} pre .f{color:var(--info)} pre .num{color:var(--warn)}
+.copy{position:absolute;top:8px;right:8px;font:12px var(--sans);background:var(--panel2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:3px 9px;cursor:pointer}
+.copy:hover{color:var(--text)}
+.filetag{display:inline-block;font:12px var(--mono);color:var(--muted);background:var(--panel2);border:1px solid var(--border);border-bottom:0;border-radius:8px 8px 0 0;padding:4px 10px;margin-top:8px}
+.filetag + pre{margin-top:0;border-top-left-radius:0}
+table{width:100%;border-collapse:collapse;margin:8px 0 18px;font-size:14px;display:block;overflow-x:auto}
+thead{background:var(--panel2)}
+th,td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top}
+th{font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:color-mix(in srgb,var(--panel) 60%,transparent)}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin:12px 0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.callout{border-radius:10px;padding:14px 16px 6px;margin:14px 0;border:1px solid var(--border);border-left-width:4px}
+.callout .t{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;display:block}
+.plain{background:var(--info-dim);border-left-color:var(--info)} .plain .t{color:var(--info)}
+.tech{background:var(--purple-dim);border-left-color:var(--purple)} .tech .t{color:var(--purple)}
+.warn{background:var(--warn-dim);border-left-color:var(--warn)} .warn .t{color:var(--warn)}
+.danger{background:var(--danger-dim);border-left-color:var(--danger)} .danger .t{color:var(--danger)}
+.good{background:var(--accent-dim);border-left-color:var(--accent)} .good .t{color:var(--accent)}
+.badge{display:inline-block;font:600 11px/1 var(--mono);padding:4px 7px;border-radius:5px;vertical-align:1px;margin-right:4px;border:1px solid}
+.b-c{color:var(--accent);border-color:var(--accent);background:var(--accent-dim)}
+.b-i{color:var(--warn);border-color:var(--warn);background:var(--warn-dim)}
+.b-t{color:var(--danger);border-color:var(--danger);background:var(--danger-dim)}
+.b-n{color:var(--info);border-color:var(--info);background:var(--info-dim)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin:6px 0 14px}
+.steps{counter-reset:s;list-style:none;padding:0}
+.steps>li{counter-increment:s;position:relative;padding:2px 0 10px 42px}
+.steps>li::before{content:counter(s);position:absolute;left:0;top:2px;width:28px;height:28px;border-radius:50%;background:var(--accent-dim);color:var(--accent);font:700 13px/28px var(--mono);text-align:center;border:1px solid var(--accent)}
+.diagram{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px;margin:12px 0 18px;overflow-x:auto}
+.diagram svg{display:block;width:100%;min-width:760px;height:auto}
+.cap{font-size:13px;color:var(--faint);margin:-8px 0 18px}
+svg text{font-family:var(--sans);fill:var(--text)}
+svg .box{fill:var(--panel2);stroke:var(--border);stroke-width:1.5}
+svg .box-a{fill:var(--accent-dim);stroke:var(--accent);stroke-width:1.5}
+svg .box-i{fill:var(--info-dim);stroke:var(--info);stroke-width:1.5}
+svg .box-p{fill:var(--purple-dim);stroke:var(--purple);stroke-width:1.5}
+svg .box-w{fill:var(--warn-dim);stroke:var(--warn);stroke-width:1.5}
+svg .box-d{fill:var(--danger-dim);stroke:var(--danger);stroke-width:1.5}
+svg .ln{stroke:var(--muted);stroke-width:1.6;fill:none}
+svg .ln-a{stroke:var(--accent);stroke-width:2;fill:none}
+svg .ln-d{stroke:var(--danger);stroke-width:2;fill:none;stroke-dasharray:6 4}
+svg .ln-w{stroke:var(--warn);stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+svg .t-s{font-size:12px;fill:var(--muted)}
+svg .t-xs{font-size:11px;fill:var(--faint)}
+svg .t-b{font-weight:700}
+svg .t-m{font-family:var(--mono);font-size:11.5px;fill:var(--muted)}
+/* dashboard mock */
+.mock{background:#0f141c;border:1px solid #2b3545;border-radius:12px;color:#e6ebf2;font:13px var(--sans);overflow:hidden}
+.mock .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;background:#161d29;border-bottom:1px solid #2b3545}
+.mock .btn{padding:6px 12px;border-radius:7px;background:#243044;border:1px solid #33425a;font-weight:600;font-size:12.5px;color:#e6ebf2}
+.mock .btn.g{background:#1f4a28;border-color:#3f8a4b}
+.mock .btn.r{background:#b3261e;border-color:#ff5f56;color:#fff;padding:8px 16px}
+.mock .sel{padding:6px 10px;border-radius:7px;background:#0d1117;border:1px solid #33425a;color:#9aa6b8}
+.mock .sp{flex:1}
+.mock .meter{color:#9aa6b8;font:12px var(--mono)}
+.mock table{margin:0;font-size:12.5px;display:table}
+.mock th,.mock td{border:0;border-bottom:1px solid #222c3b;padding:7px 10px;color:#e6ebf2}
+.mock thead{background:#121925}
+.mock tbody tr:nth-child(even){background:transparent}
+.st{display:inline-block;padding:2px 8px;border-radius:20px;font:600 11px var(--mono)}
+.st.watch{background:#14304f;color:#58a6ff}.st.battle{background:#1f3d25;color:#5fd068}.st.join{background:#3d2f12;color:#f2b84b}.st.lobby{background:#2a1f45;color:#b48cff}.st.err{background:#3d1716;color:#ff5f56}
+.mock .log{font:12px/1.6 var(--mono);color:#9aa6b8;padding:10px 12px;background:#0b0f15;border-top:1px solid #2b3545;max-height:150px;overflow:auto}
+.mock .log b{color:#5fd068;font-weight:400}.mock .log i{color:#ff5f56;font-style:normal}
+.tree{font:13px/1.6 var(--mono);white-space:pre;background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow:auto}
+.tree .d{color:var(--info)} .tree .cm{color:var(--faint)}
+.phase{border:1px solid var(--border);border-radius:12px;padding:16px 18px;background:var(--panel);margin:12px 0}
+.phase h3{margin:0 0 4px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.phase h3 small{font:600 12px var(--mono);color:var(--accent)}
+.check{list-style:none;padding-left:0}.check li{padding-left:26px;position:relative}
+.check li::before{content:"";position:absolute;left:2px;top:6px;width:13px;height:13px;border:1.5px solid var(--muted);border-radius:3px}
+.quote{border-left:3px solid var(--accent);background:var(--panel);padding:14px 18px;border-radius:0 10px 10px 0;margin:10px 0 16px}
+.themebtn{position:fixed;top:14px;right:16px;z-index:9;background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 10px;font:12px var(--sans);cursor:pointer}
+.menu-btn{display:none}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  nav.toc{position:fixed;inset:0 auto 0 0;width:280px;z-index:20;transform:translateX(-100%);transition:transform .2s}
+  nav.toc.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.5)}
+  .menu-btn{display:block;position:fixed;top:14px;left:16px;z-index:21;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px;font:13px var(--sans)}
+  main{padding-top:64px}
+}
+@media print{nav.toc,.themebtn,.menu-btn,.copy{display:none}.layout{display:block}}
+</style>
+</head>
+<body>
+<button class="menu-btn" onclick="document.querySelector('nav.toc').classList.toggle('open')">☰ Contents</button>
+<button class="themebtn" id="themeBtn">◐ Theme</button>
+<div class="layout">
+<nav class="toc" id="toc">
+  <div class="brand">ProTanki Commander</div>
+  <div class="sub">Research &amp; Architecture · v0.1 · Oct 2026</div>
+  <div class="grp">Understand</div>
+  <a href="#story">1 · Overview in 60 seconds</a>
+  <a href="#job">2 · The job, decoded</a>
+  <a href="#game">3 · How ProTanki works</a>
+  <a href="#problems">4 · The 6 hard problems</a>
+  <div class="grp">Architecture</div>
+  <a href="#stack">5 · Tech stack &amp; why</a>
+  <a href="#arch">6 · System architecture</a>
+  <a href="#tick">7 · The engine tick loop</a>
+  <a href="#fsm">8 · Account state machine</a>
+  <div class="grp">Deep dives</div>
+  <a href="#input">9 · Clicking (input layer)</a>
+  <a href="#capture">10 · Seeing (capture &amp; triggers)</a>
+  <a href="#coords">11 · Coordinates, DPI &amp; tiling</a>
+  <a href="#multi">12 · Running 10 clients at once</a>
+  <a href="#exit">13 · Exit All</a>
+  <a href="#reliable">14 · Reliability &amp; watchdog</a>
+  <a href="#config">15 · Config &amp; presets</a>
+  <a href="#vps">16 · VPS operations</a>
+  <a href="#ui">17 · The control panel UI</a>
+  <a href="#hotkey">18 · Hotkey &amp; remote triggers</a>
+  <a href="#build">19 · Packaging &amp; delivery</a>
+  <div class="grp">Execute</div>
+  <a href="#layout">20 · Project layout</a>
+  <a href="#plan">21 · Implementation plan</a>
+  <a href="#demo">22 · Demo &amp; mock simulator</a>
+  <a href="#loom">23 · Loom script</a>
+  <a href="#proposal">24 · Proposal text</a>
+  <a href="#risks">25 · Risks &amp; mitigations</a>
+  <a href="#glossary">26 · Glossary</a>
+  <a href="#sources">27 · Sources</a>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>ProTanki Commander</h1>
+  <p class="lead">A lightweight Windows tool that runs <b>6–10 ProTanki accounts</b> on one VPS. It watches every game window, clicks <b>Play</b> as soon as a battle opens, checks that each click landed, and pulls <b>every account out at once</b> on one key press. This page covers the research, the architecture, the code-level techniques, the build plan and the demo plan.</p>
+  <div class="kpis">
+    <div class="kpi"><b>6–10</b><span>accounts in parallel</span></div>
+    <div class="kpi"><b>13–90 ms</b><span>measured: button lights up → click arrives</span></div>
+    <div class="kpi"><b>~200 ms</b><span>measured Exit All, 8 accounts</span></div>
+    <div class="kpi"><b>~180 MB</b><span>tool RAM incl. UI · ~20% of 1 core</span></div>
+    <div class="kpi"><b>0</b><span>missed clicks (verify + retry)</span></div>
+    <div class="kpi"><b>1 zip / exe</b><span>runs on a fresh Windows VPS</span></div>
+  </div>
+</header>
+
+<div class="callout good" style="margin-top:0"><span class="t">Status: POC built and measured</span>
+    <p>Everything below is implemented in this folder (<code>commander/</code>, <code>mock/</code>, <code>tools/</code>, <code>vps/</code>; see <code>README.md</code> and <code>SETUP.md</code>).</p>
+    <p>Measured on the mock client with 8 accounts:</p>
+    <ul>
+      <li>0 missed joins</li>
+      <li>reaction ≤ 40–90 ms</li>
+      <li>Exit All 155–200 ms</li>
+      <li>commander about 20% of one core and about 180 MB</li>
+      <li>shipped zip 74 MB</li>
+    </ul>
+    <p>Two architecture changes came out of the build:</p>
+    <ul>
+      <li><b>The UI moved to PySide6.</b></li>
+      <li><b>Capture uses one union grab per tick.</b> Each GDI grab costs about 6 ms of compositor sync regardless of its size.</li>
+    </ul>
+  </div>
+
+<div class="legend">
+  <span><span class="badge b-c">CONFIRMED</span> a source confirms it</span>
+  <span><span class="badge b-i">INFERRED</span> our best guess from the evidence</span>
+  <span><span class="badge b-t">TEST</span> must be checked on a real install (Phase 0)</span>
+</div>
+
+<!-- ============================ 1 STORY ============================ -->
+<section id="story">
+  <h2><span class="n">01</span>Overview in 60 seconds</h2>
+  <p class="kicker">Read this first. Everything after it is detail.</p>
+
+  <div class="callout plain"><span class="t">Plain English</span>
+    <p>Picture 10 ProTanki windows laid out in a grid on one screen, like security-camera monitors. Our program is a <b>robot supervisor</b> that looks at all 10 windows about 20 times a second.</p>
+    <p>When it sees the green <b>Play</b> button light up in a window, it clicks it straight away, without moving your real mouse. Then it looks again to make sure the click worked, and clicks again if it didn't.</p>
+    <p>When you press <b>Ctrl+Alt+X</b>, or the big red button, or send <code>/exitall</code> from Telegram, the supervisor tells every window to leave the battle at the same moment. Any window that doesn't respond gets closed by force.</p>
+    <p>All button positions are saved in "presets" that you set by clicking on the game window. Nothing is hard-coded.</p>
+  </div>
+
+  <ol class="steps">
+    <li><b>Launch.</b> The tool starts one ProTanki client per account. Each runs from its own copy of the game folder, because the game's runtime (Adobe AIR) refuses to run twice from the same copy. Each window gets a fixed size and a fixed slot in a grid.</li>
+    <li><b>Watch.</b> 20–25 times a second, the tool takes one screenshot of the desktop. It cuts out the small region around each window's important button and compares a few pixel colours to what the preset expects. That takes microseconds.</li>
+    <li><b>Act.</b> When a window's "Play is ready" trigger fires, the tool sends a mouse-click message directly to that game window (Windows <code>PostMessage</code>). The real cursor doesn't move, no focus is needed, and all 10 windows can be clicked in the same few milliseconds.</li>
+    <li><b>Verify.</b> 100–200 ms later it checks whether the screen changed as expected (we're in battle). If not, it retries. If that keeps failing, it switches that account to "real mouse" mode and logs or alerts.</li>
+    <li><b>Exit.</b> One global trigger moves every account into EXITING at the same moment: exit clicks, then window close, then force-kill after 2 s.</li>
+    <li><b>Survive.</b> A watchdog notices crashed clients, lost windows and stuck screens, and relaunches or recovers them. The VPS scripts keep the screen rendering after you close or minimize Remote Desktop.</li>
+  </ol>
+</section>
+
+<!-- ============================ 2 JOB ============================ -->
+<section id="job">
+  <h2><span class="n">02</span>The job, decoded</h2>
+  <p class="kicker">Every line of the Upwork post, translated into an engineering requirement and the component that delivers it.</p>
+  <table>
+    <thead><tr><th>Client wrote</th><th>What it means technically</th><th>Delivered by</th></tr></thead>
+    <tbody>
+      <tr><td>"Control 6–10 Protanki accounts on a VPS"</td><td>N game client processes on one Windows Server desktop, each logged into a different account, each bound to a known window handle (HWND)</td><td>Launcher, WindowManager</td></tr>
+      <tr><td>"Auto-click specified in-game buttons without missing actions"</td><td>Clicks at configurable points per window, each followed by a check and retried if the check fails</td><td>InputDispatcher, verify step in the state machine</td></tr>
+      <tr><td>"Join battles immediately when the queue opens"</td><td>Detect a visual signal (pixel colour or template match) with low latency, then click Join. Target is about 100 ms from the signal appearing to the click.</td><td>Capture, triggers, engine tick</td></tr>
+      <tr><td>"Exit all accounts instantly when triggered"</td><td>A global, top-priority event that reaches every account in the same tick, with escalation to WM_CLOSE and then a process kill</td><td>ExitAll controller, hotkey thread, Telegram</td></tr>
+      <tr><td>"Set or change click coordinates, save presets"</td><td>An on-window coordinate picker. Positions are stored relative to the window as ratios, together with the expected colour. Named JSON presets that are reloaded when the file changes.</td><td>Picker UI, config module</td></tr>
+      <tr><td>"Run all instances concurrently without crashing or slowing the VPS"</td><td>One process, one capture per tick, a sleep-paced loop with no busy-waiting, exception isolation per account, and a watchdog</td><td>Engine design, watchdog</td></tr>
+      <tr><td>"Single executable or script for a fresh Windows VPS"</td><td>A Nuitka standalone build (zip), or a PyInstaller one-file exe. Nothing needs installing.</td><td>Build pipeline</td></tr>
+      <tr><td>"Clear setup instructions for adding/removing accounts"</td><td>A clone-install helper, an Add Account wizard, <code>accounts.json</code> and SETUP.md</td><td>Wizard, docs</td></tr>
+      <tr><td>"A manual exit trigger"</td><td>A hotkey, a red button, Telegram <code>/exitall</code>, and an optional local HTTP endpoint</td><td>Triggers</td></tr>
+      <tr><td>"A live demo showing real-time operation"</td><td>The Loom now, then a live screen-share on their VPS after hiring</td><td>Demo plan, mock simulator</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><span class="t">Key insight: "queue" is ambiguous</span>
+    <p>ProTanki has <b>no matchmaking queue</b> <span class="badge b-c">CONFIRMED</span>. It has a <b>battle list</b>, and joinable battles show a green <b>Play</b> button. So "join when the queue opens" probably means one of these:</p>
+    <ul>
+      <li>(a) a battle with free slots appears, or the Play button lights up;</li>
+      <li>(b) a gold-box drop is announced ("Gold Box will be dropped soon" plus a siren) and they want every account in the battle;</li>
+      <li>(c) a specific battle (maybe a private link) opens.</li>
+    </ul>
+    <p>The design handles all three, because a "trigger" is just a visual condition you define. Asking this question in the proposal shows we understand the game.</p>
+  </div>
+  <div class="callout plain"><span class="t">Why would someone want this?</span>
+    <p><span class="badge b-i">INFERRED</span> The most likely reasons:</p>
+    <ul>
+      <li>Fill a battle with your own accounts to raise your odds of catching a <b>gold box</b>. These are worth 1,000 crystals by default, 2,000–5,000 in events, and up to 100,000 at the 2026 anniversary.</li>
+      <li>Collect battle-fund payouts.</li>
+      <li>Avoid the 5-minute AFK kick.</li>
+    </ul>
+    <p>The "exit all instantly" part fits taking the reward and leaving before anyone reacts. We don't need to know why, but it explains the focus on speed.</p>
+  </div>
+</section>
+
+<!-- ============================ 3 GAME ============================ -->
+<section id="game">
+  <h2><span class="n">03</span>How ProTanki works (research)</h2>
+  <p class="kicker">What we know about the target application. This decides every technical choice that follows.</p>
+  <div class="grid2">
+    <div class="card">
+      <h4>The game</h4>
+      <ul>
+        <li><span class="badge b-c">C</span>A fan revival of <b>Tanki Online</b>, matching the game as it was in 2014–2017 (originally by AlternativaPlatform).</li>
+        <li><span class="badge b-c">C</span>It is active: site footer "© 2021-2026", news posts in Sept 2026, about 40.7k Discord members.</li>
+        <li><span class="badge b-c">C</span>Site: <code>pro-tanki.online</code>. Wiki: <code>wiki.pro-tanki.online</code>. The old <code>protanki-online.com</code> domain is now parked.</li>
+        <li><span class="badge b-c">C</span>No existing ProTanki multibox or clicker tool turned up on GitHub, YouTube or forums.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>The Windows client</h4>
+      <ul>
+        <li><span class="badge b-c">C</span>Installer: <code>pro-tanki.online/assets/download/protanki-installer.exe</code> (Inno Setup).</li>
+        <li><span class="badge b-c">C</span>Installs to <code>C:\Program Files (x86)\ProTanki Online\ProTanki.exe</code>. The exe is only about 167 KB.</li>
+        <li><span class="badge b-c">C</span>The content is Flash/ActionScript: <code>Prelauncher.swf</code> → <code>Loader.swf</code> → <code>library.swf</code>.</li>
+        <li><span class="badge b-i">I</span>It is an <b>Adobe AIR "captive runtime"</b> app (a tiny stub exe plus a bundled AIR runtime), so not Electron and not a browser.</li>
+        <li><span class="badge b-i">I</span>Rendering is Stage3D (DirectX), with a software fallback when there's no GPU. On a GPU-less VPS that means the CPU does the rendering.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Lobby &amp; battle flow</h4>
+      <ul>
+        <li><span class="badge b-c">C</span>Login → <b>Lobby</b>.
+          <ul>
+            <li>Top bar: Rank, Crystals, Shop, Missions, Friends, <b>Battles list</b>, Garage, Clans, Settings, Sound, <b>Fullscreen</b>, Help, <b>Logout</b>.</li>
+            <li>Chat on the left, battle list in the centre.</li>
+          </ul>
+        </li>
+        <li><span class="badge b-c">C</span>Click a battle to see its details. A green <b>Play</b> button means you can join, and you can pick a team if it isn't full.</li>
+        <li><span class="badge b-c">C</span>Since 13.05.2026 the client remembers several accounts, which makes login easy.</li>
+        <li><span class="badge b-t">TEST</span>The exact exit-battle control. Probably Esc → pause menu → exit to lobby.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Rules that matter</h4>
+      <ul>
+        <li><span class="badge b-c">C</span>AFK kick after <b>5 minutes</b>.</li>
+        <li><span class="badge b-c">C</span>The battle fund is paid only to players still in the battle when it ends.</li>
+        <li><span class="badge b-c">C</span>Gold box: a warning and siren, then the drop <b>30–50 s</b> later.</li>
+        <li><span class="badge b-c">C</span>Game rules ban bots and cheats (1.1), third-party programs used for advantage (3.4), and battles between your own accounts (3.6). Punishment goes up to a permanent ban.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout danger"><span class="t">Terms of service</span>
+    <p>Using this tool breaks ProTanki's game rules. That is the <b>client's</b> risk. We build no detection-evasion features, never market it as "undetectable", and put one neutral line about it in the proposal.</p>
+    <p>For our own demo, use <b>throwaway accounts</b>, because those accounts could be banned.</p>
+  </div>
+  <div class="callout tech"><span class="t">Protocol reverse-engineering exists, and we don't use it</span>
+    <p>Community projects have reverse-engineered the network protocol: ProtankiNetworking (C#), ProboTanki-Lib (Python), protanki-protocol-rs (Rust, with a headless client). A packet-level bot would be faster, but it is fragile (the client is getting more obfuscated), much harder to build, and far more clearly "cheating".</p>
+    <p>The client asked for a <b>clicker</b>, so we stay at the UI level. It's simpler, safer, and easy to explain.</p>
+  </div>
+</section>
+
+<!-- ============================ 4 PROBLEMS ============================ -->
+<section id="problems">
+  <h2><span class="n">04</span>The 6 hard problems</h2>
+  <p class="kicker">Anyone can write an autoclicker. These six problems are what separate a tool that works on a VPS with 10 accounts from one that doesn't.</p>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0">① Ten copies of one game</h3>
+      <p><b>Problem:</b> Adobe AIR allows only <i>one instance per application ID</i> <span class="badge b-c">C</span>. Double-clicking ProTanki.exe a second time just brings the first window forward.</p>
+      <p><b>Solution:</b> one copy of the install folder per account, with a unique <code>&lt;id&gt;</code> in <code>META-INF\AIR\application.xml</code>. The community launcher does exactly this. <a href="#multi">→ §12</a></p></div>
+    <div class="card"><h3 style="margin-top:0">② Clicking 10 windows at once</h3>
+      <p><b>Problem:</b> a normal autoclicker moves <i>the</i> mouse, and there is only one mouse. Clicking 10 windows that way means switching focus 10 times, which takes about 0.5–1 s.</p>
+      <p><b>Solution:</b> send the click as a <i>window message</i> straight to each game window (<code>PostMessage</code>). The cursor doesn't move, no focus is needed, and it's parallel. The fallback is real input, one window at a time. <a href="#input">→ §9</a></p></div>
+    <div class="card"><h3 style="margin-top:0">③ Seeing 10 windows cheaply</h3>
+      <p><b>Problem:</b> taking 10 screenshots, 20 times a second, and analysing whole frames would burn the VPS CPU.</p>
+      <p><b>Solution:</b> windows are tiled with no overlap. Each tick takes <b>one</b> desktop grab, slices a tiny region per window with numpy, and compares 3–5 pixels. That costs microseconds per window. <a href="#capture">→ §10</a></p></div>
+    <div class="card"><h3 style="margin-top:0">④ The Remote Desktop trap</h3>
+      <p><b>Problem:</b> on a VPS, if you minimize or close the Remote Desktop window, Windows <b>stops drawing the desktop</b>. Screenshots come back black and real-mouse input fails. Most clickers die here.</p>
+      <p><b>Solution:</b> a registry fix for "minimized", a <code>tscon</code> disconnect script for "closed", and a forced resolution at startup. <a href="#vps">→ §16</a></p></div>
+    <div class="card"><h3 style="margin-top:0">⑤ Coordinates that don't drift</h3>
+      <p><b>Problem:</b> different window sizes, DPI scaling (125%/150%) and title-bar heights all shift where a button is on screen.</p>
+      <p><b>Solution:</b> the tool is DPI-aware, every window gets a fixed client size, and positions are stored <i>as ratios of the client area</i>. <a href="#coords">→ §11</a></p></div>
+    <div class="card"><h3 style="margin-top:0">⑥ "Without missing actions"</h3>
+      <p><b>Problem:</b> a click sent isn't a click received. The game may be lagging, a menu may cover the button, or the window may have crashed.</p>
+      <p><b>Solution:</b> verify after every click, retry with backoff, escalate to real input, run a watchdog that relaunches, and log every click. <a href="#reliable">→ §14</a></p></div>
+  </div>
+</section>
+
+<!-- ============================ 5 STACK ============================ -->
+<section id="stack">
+  <h2><span class="n">05</span>Tech stack &amp; why</h2>
+  <p class="kicker">Picked for a 1–2 day build, a small footprint, and full access to Windows internals.</p>
+  <table>
+    <thead><tr><th>Layer</th><th>Choice</th><th>Why this</th><th>Fallback</th></tr></thead>
+    <tbody>
+      <tr><td>Language</td><td><b>Python 3.12</b></td><td>Fastest to build. Full Win32 API through <code>pywin32</code>/<code>ctypes</code>. Strong image tooling (numpy, OpenCV).</td><td>none</td></tr>
+      <tr><td>UI</td><td><b>PySide6 (Qt 6)</b></td><td>Chosen in the build for a polished, native-feeling UI: custom-painted table, picker overlay with magnifier, crisp at any DPI. About 180 MB RAM with the UI open.</td><td>CustomTkinter (lighter, plainer)</td></tr>
+      <tr><td>Win32 access</td><td><b>pywin32 + ctypes</b></td><td>PostMessage, SendInput, EnumWindows, SetWindowPos, PrintWindow, RegisterHotKey</td><td>none</td></tr>
+      <tr><td>Screen capture</td><td><b>mss</b> (GDI BitBlt)</td><td>Fast, pure Python, works in RDP and console sessions</td><td><code>PrintWindow</code> per window. <code>dxcam</code> / Windows Graphics Capture where a GPU is available.</td></tr>
+      <tr><td>Image math</td><td><b>numpy</b></td><td>Region slicing and pixel compares in microseconds</td><td>none</td></tr>
+      <tr><td>Template match</td><td><b>numpy FFT cross-correlation</b> (own code)</td><td>Same scores as OpenCV's <code>TM_CCOEFF_NORMED</code> (verified to 4 decimals) in under 5 ms, without the 110 MB OpenCV wheel</td><td>Pixel checks only</td></tr>
+      <tr><td>Processes</td><td><b>psutil</b></td><td>Track PIDs and children, read RAM/CPU, kill reliably</td><td><code>taskkill /F /T</code></td></tr>
+      <tr><td>Config</td><td><b>pydantic</b> + JSON</td><td>Checks presets on load, with readable errors</td><td>dataclasses</td></tr>
+      <tr><td>Remote</td><td><b>Telegram Bot API</b> (optional)</td><td><code>/exitall</code>, <code>/status</code>, <code>/screenshot</code> from a phone</td><td>Local HTTP on 127.0.0.1</td></tr>
+      <tr><td>Packaging</td><td><b>Nuitka --standalone</b> (zip)</td><td>Compiles to C, no unpacking to %TEMP%, fewer antivirus false positives</td><td>PyInstaller <code>--onefile --noupx</code></td></tr>
+    </tbody>
+  </table>
+  <h3>Rejected alternatives</h3>
+  <div class="grid3">
+    <div class="card"><h4>C# / .NET 8</h4><p>A good runtime. But WinForms doesn't support NativeAOT, so a self-contained build is about 66 MB or more, and it's slower for us to build. It would be a reasonable v2 if the client wants it.</p></div>
+    <div class="card"><h4>AutoHotkey v2</h4><p>Tiny, and <code>ControlClick</code> is ideal. But it runs on one thread, its GUI is basic, and compiled AHK is often flagged by antivirus. Fine for a quick test, weak for a polished product.</p></div>
+    <div class="card"><h4>Chrome DevTools / Playwright</h4><p>The best option for Electron or browser games, because it gives true background input per tab. ProTanki is Flash/AIR, so it doesn't apply.</p></div>
+  </div>
+</section>
+
+<!-- ============================ 6 ARCH ============================ -->
+<section id="arch">
+  <h2><span class="n">06</span>System architecture</h2>
+  <p class="kicker">One process, a few threads, one "brain" loop. Everything talks through one command queue.</p>
+  <div class="diagram">
+  <svg viewBox="0 0 1000 690" role="img" aria-label="System architecture diagram">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker>
+      <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/></marker>
+      <marker id="ard" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--danger)"/></marker>
+    </defs>
+    <rect x="6" y="6" width="988" height="500" rx="14" style="fill:none;stroke:var(--border);stroke-width:1.5;stroke-dasharray:6 5"/>
+    <text x="22" y="28" class="t-s t-b">ProTankiCommander.exe · one Python process</text>
+
+    <rect class="box-i" x="22" y="42" width="300" height="140" rx="10"/>
+    <text x="36" y="64" class="t-b">UI thread (PySide6 / Qt)</text>
+    <text x="36" y="86" class="t-s">• Account table + live state badges</text>
+    <text x="36" y="104" class="t-s">• Start / Stop / big red EXIT ALL</text>
+    <text x="36" y="122" class="t-s">• Coordinate picker overlay</text>
+    <text x="36" y="140" class="t-s">• Preset editor · Add-account wizard</text>
+    <text x="36" y="158" class="t-s">• Live log · CPU/RAM meter</text>
+
+    <rect class="box-d" x="340" y="42" width="200" height="140" rx="10"/>
+    <text x="354" y="64" class="t-b">Hotkey thread</text>
+    <text x="354" y="86" class="t-s">RegisterHotKey + GetMessage</text>
+    <text x="354" y="108" class="t-m">Ctrl+Alt+X → EXIT_ALL</text>
+    <text x="354" y="126" class="t-m">Ctrl+Alt+P → PAUSE_ALL</text>
+    <text x="354" y="150" class="t-xs">works while tool is unfocused</text>
+
+    <rect class="box-p" x="558" y="42" width="200" height="140" rx="10"/>
+    <text x="572" y="64" class="t-b">Remote thread (opt.)</text>
+    <text x="572" y="86" class="t-s">Telegram long-poll</text>
+    <text x="572" y="108" class="t-m">/exitall /status</text>
+    <text x="572" y="126" class="t-m">/screenshot /start</text>
+    <text x="572" y="150" class="t-xs">locked to owner user-id</text>
+
+    <rect class="box" x="776" y="42" width="204" height="140" rx="10"/>
+    <text x="790" y="64" class="t-b">Config + Logger</text>
+    <text x="790" y="86" class="t-s">accounts.json</text>
+    <text x="790" y="104" class="t-s">presets/*.json (hot-reload)</text>
+    <text x="790" y="122" class="t-s">templates/*.png</text>
+    <text x="790" y="144" class="t-s">logs/YYYY-MM-DD.log</text>
+    <text x="790" y="162" class="t-xs">pydantic-validated</text>
+
+    <rect class="box-w" x="22" y="210" width="958" height="44" rx="10"/>
+    <text x="40" y="237" class="t-b">Command Bus · queue.Queue</text>
+    <text x="300" y="237" class="t-m">START(acc) · STOP(acc) · EXIT_ALL · PAUSE_ALL · RELOAD_PRESET · PICK_RESULT · SET_MODE</text>
+    <line class="ln" x1="172" y1="182" x2="172" y2="208" marker-end="url(#ar)"/>
+    <line class="ln-d" x1="440" y1="182" x2="440" y2="208" marker-end="url(#ard)"/>
+    <line class="ln" x1="658" y1="182" x2="658" y2="208" marker-end="url(#ar)"/>
+    <line class="ln" x1="878" y1="182" x2="878" y2="208" marker-end="url(#ar)"/>
+
+    <rect class="box-a" x="22" y="282" width="610" height="208" rx="10"/>
+    <text x="38" y="306" class="t-b">Engine / Scheduler thread · tick every 30–75 ms</text>
+    <rect class="box" x="38" y="320" width="112" height="72" rx="8"/><text x="48" y="342" class="t-b" style="font-size:13px">1 Capture</text><text x="48" y="360" class="t-xs">mss grab (1×)</text><text x="48" y="376" class="t-xs">slice ROI/acct</text>
+    <rect class="box" x="156" y="320" width="112" height="72" rx="8"/><text x="166" y="342" class="t-b" style="font-size:13px">2 Evaluate</text><text x="166" y="360" class="t-xs">pixel / template</text><text x="166" y="376" class="t-xs">+ debounce</text>
+    <rect class="box" x="274" y="320" width="112" height="72" rx="8"/><text x="284" y="342" class="t-b" style="font-size:13px">3 Advance</text><text x="284" y="360" class="t-xs">state machine</text><text x="284" y="376" class="t-xs">× N accounts</text>
+    <rect class="box" x="392" y="320" width="112" height="72" rx="8"/><text x="402" y="342" class="t-b" style="font-size:13px">4 Dispatch</text><text x="402" y="360" class="t-xs">actions →</text><text x="402" y="376" class="t-xs">InputDispatcher</text>
+    <rect class="box" x="510" y="320" width="112" height="72" rx="8"/><text x="520" y="342" class="t-b" style="font-size:13px">5 Watchdog</text><text x="520" y="360" class="t-xs">pid / hwnd /</text><text x="520" y="376" class="t-xs">stuck timers</text>
+    <line class="ln" x1="150" y1="356" x2="155" y2="356" marker-end="url(#ar)"/>
+    <line class="ln" x1="268" y1="356" x2="273" y2="356" marker-end="url(#ar)"/>
+    <line class="ln" x1="386" y1="356" x2="391" y2="356" marker-end="url(#ar)"/>
+    <line class="ln" x1="504" y1="356" x2="509" y2="356" marker-end="url(#ar)"/>
+    <text x="38" y="420" class="t-s">AccountStateMachine[acc1..accN] · ExitAll Event (threading.Event, checked every step &amp; wait)</text>
+    <text x="38" y="440" class="t-s">Click-verify queue · retry/backoff · miss counters · per-account exception isolation</text>
+    <text x="38" y="466" class="t-xs">sleep(poll − elapsed) — never a busy loop</text>
+    <line class="ln" x1="327" y1="254" x2="327" y2="280" marker-end="url(#ar)"/>
+
+    <rect class="box-i" x="650" y="282" width="330" height="96" rx="10"/>
+    <text x="664" y="304" class="t-b">WindowManager + Launcher</text>
+    <text x="664" y="324" class="t-s">clone install → unique AIR app-id → Popen</text>
+    <text x="664" y="342" class="t-s">PID → HWND bind · SetWindowText("PT-acc1")</text>
+    <text x="664" y="360" class="t-s">AdjustWindowRectEx + SetWindowPos (tile)</text>
+
+    <rect class="box-p" x="650" y="392" width="330" height="98" rx="10"/>
+    <text x="664" y="414" class="t-b">InputDispatcher</text>
+    <text x="664" y="434" class="t-s">PostMessageBackend · parallel, µs, no focus</text>
+    <text x="664" y="452" class="t-s">SendInputBackend · 1 worker + global lock</text>
+    <text x="664" y="470" class="t-xs">per-account input_mode: "post" | "sendinput"</text>
+    <line class="ln" x1="632" y1="356" x2="648" y2="430" marker-end="url(#ar)"/>
+    <line class="ln" x1="632" y1="330" x2="648" y2="330" marker-end="url(#ar)"/>
+
+    <!-- game windows -->
+    <text x="22" y="534" class="t-s t-b">ProTanki.exe × N · tiled grid · fixed client size · never minimized · no overlap</text>
+    <g>
+      <rect class="box" x="22"  y="548" width="150" height="100" rx="8"/><text x="36" y="570" class="t-b" style="font-size:13px">PT-acc1</text><text x="36" y="590" class="t-xs">C:\ProTanki\acc1</text><rect x="110" y="616" width="50" height="20" rx="4" style="fill:var(--accent)"/><text x="118" y="630" style="font-size:10px;fill:#08130a;font-weight:700">PLAY</text>
+      <rect class="box" x="186" y="548" width="150" height="100" rx="8"/><text x="200" y="570" class="t-b" style="font-size:13px">PT-acc2</text><text x="200" y="590" class="t-xs">C:\ProTanki\acc2</text>
+      <rect class="box" x="350" y="548" width="150" height="100" rx="8"/><text x="364" y="570" class="t-b" style="font-size:13px">PT-acc3</text><text x="364" y="590" class="t-xs">C:\ProTanki\acc3</text>
+      <rect class="box" x="514" y="548" width="150" height="100" rx="8"/><text x="528" y="570" class="t-b" style="font-size:13px">PT-acc4</text><text x="528" y="590" class="t-xs">C:\ProTanki\acc4</text>
+      <rect class="box" x="678" y="548" width="150" height="100" rx="8"/><text x="692" y="570" class="t-b" style="font-size:13px">PT-acc5</text><text x="692" y="590" class="t-xs">C:\ProTanki\acc5</text>
+      <rect class="box" x="842" y="548" width="138" height="100" rx="8"/><text x="856" y="570" class="t-b" style="font-size:13px">… acc10</text>
+    </g>
+    <path class="ln-a" d="M815 490 L815 520 L420 520 L420 546" marker-end="url(#arg)"/>
+    <text x="580" y="516" class="t-xs" style="fill:var(--accent)">WM_LBUTTONDOWN/UP (or SendInput)</text>
+    <path class="ln" d="M96 546 L96 515 L96 494" marker-end="url(#ar)"/>
+    <text x="104" y="512" class="t-xs">pixels (desktop grab)</text>
+    <line class="ln" x1="900" y1="378" x2="900" y2="546" marker-end="url(#ar)" style="stroke-dasharray:4 4"/>
+    <text x="906" y="530" class="t-xs">launch / tile</text>
+  </svg>
+  </div>
+  <p class="cap">Figure 1: Components and data flow. The red dashed arrow is the Exit All path, which takes priority over everything else.</p>
+
+  <h3>Component responsibilities</h3>
+  <table>
+    <thead><tr><th>Component</th><th>Responsibility</th><th>Key Win32 / library calls</th></tr></thead>
+    <tbody>
+      <tr><td><b>UI thread</b></td><td>Shows state and sends user commands to the bus. Never touches game windows directly, so the UI can't freeze the engine.</td><td>Qt <code>QTimer</code> polling of an immutable engine snapshot</td></tr>
+      <tr><td><b>Command bus</b></td><td>Thread-safe queue. The single entry point for every intent (UI, hotkey, Telegram).</td><td><code>queue.Queue</code></td></tr>
+      <tr><td><b>Engine</b></td><td>The loop that runs everything: capture → evaluate → state machines → dispatch → watchdog.</td><td><code>time.perf_counter</code>, <code>threading.Event</code></td></tr>
+      <tr><td><b>AccountStateMachine</b></td><td>One per account. Knows where the account is (lobby, watching, in battle…) and what to do next.</td><td>pure Python</td></tr>
+      <tr><td><b>Triggers</b></td><td>Turn pixels into true/false facts: "Play is ready", "in battle", "lobby visible".</td><td>numpy, <code>cv2.matchTemplate</code></td></tr>
+      <tr><td><b>Capture</b></td><td>Gets pixels for every window as cheaply as possible.</td><td><code>mss.grab</code>, <code>PrintWindow</code></td></tr>
+      <tr><td><b>InputDispatcher</b></td><td>Delivers clicks and keys through the account's backend.</td><td><code>PostMessage</code>, <code>SendInput</code></td></tr>
+      <tr><td><b>WindowManager</b></td><td>Finds, names, sizes and positions windows. Converts between coordinate spaces.</td><td><code>EnumWindows</code>, <code>GetWindowThreadProcessId</code>, <code>SetWindowPos</code>, <code>ClientToScreen</code></td></tr>
+      <tr><td><b>Launcher</b></td><td>Makes per-account install copies, patches the AIR app-id, starts processes.</td><td><code>shutil.copytree</code>, <code>subprocess.Popen</code></td></tr>
+      <tr><td><b>Hotkey thread</b></td><td>A global hotkey that works whatever window has focus.</td><td><code>RegisterHotKey</code>, <code>GetMessageW</code></td></tr>
+      <tr><td><b>Watchdog</b></td><td>Notices dead processes, lost windows and stuck states, then recovers.</td><td><code>IsWindow</code>, <code>psutil.pid_exists</code></td></tr>
+    </tbody>
+  </table>
+  <div class="callout plain"><span class="t">Why one "brain" thread instead of 10 worker threads?</span>
+    <p>With 10 threads, each one would take its own screenshot, and they'd compete for the CPU and for the single mouse. With one brain we take <b>one</b> screenshot per tick and make every decision from it. That's cheaper, it's predictable, and the log reads like a story.</p>
+    <p>Sending a posted click takes microseconds, so doing all 10 inline is effectively simultaneous.</p>
+  </div>
+</section>
+
+<!-- ============================ 7 TICK ============================ -->
+<section id="tick">
+  <h2><span class="n">07</span>The engine tick loop</h2>
+  <p class="kicker">What happens in each 40 ms tick, and how fast we react.</p>
+  <div class="diagram">
+  <svg viewBox="0 0 1000 250" role="img" aria-label="Tick timeline">
+    <text x="20" y="24" class="t-s t-b">One tick (poll_ms = 40)</text>
+    <line class="ln" x1="40" y1="120" x2="960" y2="120"/>
+    <g class="t-m">
+      <text x="34" y="142">0</text><text x="252" y="142">10</text><text x="482" y="142">20</text><text x="712" y="142">30</text><text x="940" y="142">40 ms</text>
+    </g>
+    <rect class="box-i" x="40" y="70" width="150" height="40" rx="6"/><text x="50" y="95" style="font-size:12px">capture 2–8 ms</text>
+    <rect class="box-a" x="192" y="70" width="40" height="40" rx="6"/><text x="186" y="62" class="t-xs">eval &lt;1</text>
+    <rect class="box-p" x="234" y="70" width="34" height="40" rx="6"/><text x="236" y="62" class="t-xs">fsm</text>
+    <rect class="box-w" x="270" y="70" width="30" height="40" rx="6"/><text x="266" y="62" class="t-xs">click</text>
+    <rect class="box" x="302" y="70" width="24" height="40" rx="6"/><text x="300" y="62" class="t-xs">wd</text>
+    <rect x="330" y="70" width="630" height="40" rx="6" style="fill:none;stroke:var(--border);stroke-dasharray:5 4"/>
+    <text x="560" y="95" class="t-s">sleep(poll − elapsed) — CPU idle</text>
+    <text x="20" y="182" class="t-s t-b">Reaction latency: Play button lights up → click delivered</text>
+    <text x="20" y="204" class="t-s">avg wait for next tick ≈ poll/2 = 20 ms  +  debounce (optional 2nd frame) 0–40 ms  +  eval+dispatch ≈ 1 ms  +  game input processing ≈ 1 frame (16 ms)</text>
+    <text x="20" y="228" class="t-s" style="fill:var(--accent)">≈ 40–80 ms typical  ·  worst case ≈ poll×2 + 16 ≈ 100 ms   (compare: a human reacts in ~250 ms)</text>
+  </svg>
+  </div>
+  <p class="cap">Figure 2: Time budget for one tick. Capture time depends on the region size; it gets measured in Phase 0.</p>
+  <div class="filetag">app/engine.py (sketch)</div>
+<pre><code><span class="k">class</span> <span class="f">Engine</span>(threading.Thread):
+    <span class="k">def</span> <span class="f">run</span>(self):
+        <span class="k">while not</span> self.stop.is_set():
+            t0 = time.perf_counter()
+            self._drain_commands()                     <span class="c"># START/STOP/EXIT_ALL from the bus</span>
+            frame = self.capture.grab(self.active_rois())  <span class="c"># ONE grab for all accounts</span>
+            now = time.monotonic()
+            <span class="k">for</span> acc <span class="k">in</span> self.accounts:
+                <span class="k">try</span>:
+                    obs = self.triggers.evaluate(acc, frame)   <span class="c"># {"join_ready": True, ...}</span>
+                    <span class="k">for</span> action <span class="k">in</span> acc.fsm.step(obs, now):    <span class="c"># state machine decides</span>
+                        self.dispatcher.submit(acc, action)    <span class="c"># post = instant, sendinput = queued</span>
+                <span class="k">except</span> Exception:
+                    log.exception(<span class="s">"acc %s failed this tick"</span>, acc.id)  <span class="c"># one bad account never kills the loop</span>
+                    acc.fsm.fault()
+            self.watchdog.check(self.accounts, now)
+            elapsed = time.perf_counter() - t0
+            self.stop.wait(max(<span class="num">0.0</span>, self.poll_s - elapsed))     <span class="c"># sleep, but wake instantly on stop</span></code></pre>
+  <div class="callout tech"><span class="t">Debounce trade-off</span>
+    <p>Requiring the trigger in <b>2 consecutive frames</b> removes false positives, such as an animation flashing green. It costs one tick (about 40 ms) of latency.</p>
+    <p>For <code>join_ready</code>, speed matters most, so the default is <b>1 frame with a multi-pixel check</b>: 3–5 sample points that must all match. That is nearly as safe and has no extra delay. It's configurable per trigger with <code>"debounce": 1|2</code>.</p>
+  </div>
+</section>
+
+<!-- ============================ 8 FSM ============================ -->
+<section id="fsm">
+  <h2><span class="n">08</span>Account state machine</h2>
+  <p class="kicker">Each account is always in exactly one state, and the screen decides when it moves to the next.</p>
+  <div class="diagram">
+  <svg viewBox="0 0 1000 470" role="img" aria-label="State machine">
+    <defs>
+      <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker>
+      <marker id="a2g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/></marker>
+      <marker id="a2w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--warn)"/></marker>
+      <marker id="a2d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--danger)"/></marker>
+    </defs>
+    <rect class="box" x="30" y="50" width="150" height="56" rx="28"/><text x="105" y="83" text-anchor="middle" class="t-b">LAUNCH</text>
+    <rect class="box" x="270" y="50" width="150" height="56" rx="28"/><text x="345" y="76" text-anchor="middle" class="t-b">LOGIN</text><text x="345" y="94" text-anchor="middle" class="t-xs">optional</text>
+    <rect class="box-p" x="510" y="50" width="150" height="56" rx="28"/><text x="585" y="83" text-anchor="middle" class="t-b">LOBBY</text>
+    <rect class="box-i" x="790" y="50" width="170" height="56" rx="28"/><text x="875" y="76" text-anchor="middle" class="t-b">WATCH</text><text x="875" y="94" text-anchor="middle" class="t-xs">poll join_ready</text>
+    <rect class="box-w" x="790" y="210" width="170" height="56" rx="28"/><text x="875" y="236" text-anchor="middle" class="t-b">JOIN</text><text x="875" y="254" text-anchor="middle" class="t-xs">click Play + verify</text>
+    <rect class="box-a" x="510" y="210" width="150" height="56" rx="28"/><text x="585" y="236" text-anchor="middle" class="t-b">IN_BATTLE</text><text x="585" y="254" text-anchor="middle" class="t-xs">anti-AFK optional</text>
+    <rect class="box-d" x="30" y="210" width="150" height="56" rx="28"/><text x="105" y="243" text-anchor="middle" class="t-b">ERROR</text>
+
+    <line class="ln" x1="180" y1="78" x2="268" y2="78" marker-end="url(#a2)"/><text x="190" y="70" class="t-xs">window found</text>
+    <line class="ln" x1="420" y1="78" x2="508" y2="78" marker-end="url(#a2)"/><text x="428" y="70" class="t-xs">lobby trigger</text>
+    <line class="ln" x1="660" y1="78" x2="788" y2="78" marker-end="url(#a2)"/><text x="672" y="70" class="t-xs">battle list open</text>
+    <line class="ln-a" x1="875" y1="106" x2="875" y2="208" marker-end="url(#a2g)"/><text x="884" y="150" class="t-xs" style="fill:var(--accent)">join_ready ✓</text><text x="884" y="166" class="t-xs" style="fill:var(--accent)">(1–2 frames)</text>
+    <line class="ln-a" x1="790" y1="238" x2="662" y2="238" marker-end="url(#a2g)"/><text x="680" y="230" class="t-xs" style="fill:var(--accent)">in_battle seen</text>
+    <path class="ln-w" d="M800 222 C 740 170, 760 130, 800 104" marker-end="url(#a2w)"/><text x="690" y="160" class="t-xs" style="fill:var(--warn)">timeout → miss++</text>
+    <path class="ln" d="M560 210 L560 108" marker-end="url(#a2)"/><text x="470" y="160" class="t-xs">battle ended</text><text x="470" y="174" class="t-xs">(lobby seen)</text>
+    <path class="ln-w" d="M105 106 L105 208" marker-end="url(#a2w)"/><text x="112" y="150" class="t-xs" style="fill:var(--warn)">3× launch fail</text>
+    <path class="ln-w" d="M510 250 C 350 300, 200 160, 140 108" marker-end="url(#a2w)"/><text x="250" y="230" class="t-xs" style="fill:var(--warn)">watchdog: pid dead / hwnd lost → relaunch</text>
+
+    <rect x="30" y="320" width="930" height="130" rx="12" style="fill:var(--danger-dim);stroke:var(--danger);stroke-width:1.5;stroke-dasharray:6 4"/>
+    <text x="50" y="346" class="t-b" style="fill:var(--danger)">EXIT_ALL (from ANY state, highest priority)</text>
+    <rect class="box-d" x="60" y="364" width="200" height="60" rx="30"/><text x="160" y="390" text-anchor="middle" class="t-b">EXITING</text><text x="160" y="408" text-anchor="middle" class="t-xs">exit sequence</text>
+    <rect class="box-d" x="390" y="364" width="200" height="60" rx="30"/><text x="490" y="390" text-anchor="middle" class="t-b">CLOSING</text><text x="490" y="408" text-anchor="middle" class="t-xs">WM_CLOSE</text>
+    <rect class="box" x="720" y="364" width="200" height="60" rx="30"/><text x="820" y="390" text-anchor="middle" class="t-b">EXITED</text><text x="820" y="408" text-anchor="middle" class="t-xs">pid gone</text>
+    <line class="ln-d" x1="260" y1="394" x2="388" y2="394" marker-end="url(#a2d)"/><text x="268" y="386" class="t-xs">mode=close_client</text>
+    <line class="ln-d" x1="590" y1="394" x2="718" y2="394" marker-end="url(#a2d)"/><text x="600" y="386" class="t-xs">2 s → kill()</text>
+  </svg>
+  </div>
+  <p class="cap">Figure 3: Per-account state machine. Green arrows are the fast path. Amber arrows are recovery. The red area can be entered from any state.</p>
+  <table>
+    <thead><tr><th>State</th><th>On entry</th><th>Leaves when</th><th>Timeout / failure</th></tr></thead>
+    <tbody>
+      <tr><td><b>LAUNCH</b></td><td>Popen the account's exe, bind the PID, wait for the window, rename it, tile it</td><td>HWND found → LOGIN or LOBBY</td><td><code>launch_s</code> (60 s) → retry ×3 with backoff → ERROR</td></tr>
+      <tr><td><b>LOGIN</b></td><td>Run the <code>login</code> sequence (pick the saved account → Play)</td><td><code>lobby</code> trigger true</td><td>30 s → kill and LAUNCH</td></tr>
+      <tr><td><b>LOBBY</b></td><td>Run <code>open_list</code> (click "Battles")</td><td>Battle list visible → WATCH</td><td>Window lost → LAUNCH</td></tr>
+      <tr><td><b>WATCH</b></td><td>Nothing; just watch (cheapest state)</td><td><code>join_ready</code> true for <code>debounce</code> frames → JOIN</td><td>none; waits indefinitely</td></tr>
+      <tr><td><b>JOIN</b></td><td>Run <code>join</code> (click Play, optionally pick a team)</td><td><code>in_battle</code> → IN_BATTLE</td><td>Verify fails → re-click up to 3×. <code>join_s</code> → WATCH, misses++</td></tr>
+      <tr><td><b>IN_BATTLE</b></td><td>Optional <code>anti_afk</code> every N s (beats the 5-min AFK kick)</td><td><code>lobby</code> seen → LOBBY (loops back)</td><td>Window lost → LAUNCH</td></tr>
+      <tr><td><b>EXITING</b></td><td>Run the <code>exit</code> sequence (Esc → Exit)</td><td><code>lobby</code> seen → EXITED, or go to CLOSING when the exit mode is close_client</td><td>1.5 s → CLOSING</td></tr>
+      <tr><td><b>CLOSING</b></td><td>Send <code>WM_CLOSE</code> to the HWND</td><td>PID gone → EXITED</td><td>2 s → <code>psutil.kill()</code></td></tr>
+    </tbody>
+  </table>
+  <div class="filetag">app/account.py (sketch)</div>
+<pre><code><span class="k">class</span> <span class="f">AccountFSM</span>:
+    <span class="k">def</span> <span class="f">step</span>(self, obs: dict, now: float) -&gt; list[Action]:
+        <span class="k">if</span> EXIT_ALL.is_set() <span class="k">and</span> self.state <span class="k">not in</span> (S.EXITING, S.CLOSING, S.EXITED):
+            <span class="k">return</span> self._enter(S.EXITING, now)              <span class="c"># top priority, from any state</span>
+        <span class="k">match</span> self.state:
+            <span class="k">case</span> S.WATCH <span class="k">if</span> obs[<span class="s">"join_ready"</span>]:
+                <span class="k">return</span> self._enter(S.JOIN, now)                <span class="c"># returns [Click("play_btn")]</span>
+            <span class="k">case</span> S.JOIN:
+                <span class="k">if</span> obs[<span class="s">"in_battle"</span>]:      <span class="k">return</span> self._enter(S.IN_BATTLE, now)
+                <span class="k">if</span> self._verify_due(now):  <span class="k">return</span> self._retry_or_fail(now)  <span class="c"># re-click, backoff, escalate</span>
+                <span class="k">if</span> self._timed_out(now):   self.misses += <span class="num">1</span>; <span class="k">return</span> self._enter(S.WATCH, now)
+            <span class="k">case</span> S.IN_BATTLE:
+                <span class="k">if</span> obs[<span class="s">"lobby"</span>]:          <span class="k">return</span> self._enter(S.LOBBY, now)
+                <span class="k">if</span> self._afk_due(now):     <span class="k">return</span> self.seq(<span class="s">"anti_afk"</span>)
+            <span class="c"># ... LAUNCH / LOGIN / LOBBY / EXITING / CLOSING</span>
+        <span class="k">return</span> []</code></pre>
+</section>
+
+<!-- ============================ 9 INPUT ============================ -->
+<section id="input">
+  <h2><span class="n">09</span>Clicking: the input layer</h2>
+  <p class="kicker">There are two ways to "click" in Windows. We build both and pick one per account.</p>
+  <div class="callout plain"><span class="t">Plain English</span>
+    <p>Windows tells every program "the mouse was pressed at x,y" by putting a <b>message</b> in that program's mailbox. A normal autoclicker moves the real mouse and lets Windows deliver the message to whatever window is on top.</p>
+    <p>We skip that and drop the "mouse pressed here" message <b>directly into each game window's mailbox</b>. The game can't tell the difference (usually), your mouse stays still, and we can do it for 10 windows at the same moment.</p>
+  </div>
+  <table>
+    <thead><tr><th></th><th>A · PostMessage (primary)</th><th>B · SendInput (fallback)</th></tr></thead>
+    <tbody>
+      <tr><td>How</td><td><code>PostMessage(hwnd, WM_LBUTTONDOWN/UP, MK_LBUTTON, MAKELPARAM(x,y))</code></td><td>Synthesizes a real mouse event; it goes to the foreground window under the cursor</td></tr>
+      <tr><td>Needs focus?</td><td>No</td><td>Yes: <code>SetForegroundWindow</code> first</td></tr>
+      <tr><td>Moves cursor?</td><td>No</td><td>Yes (restored afterwards)</td></tr>
+      <tr><td>10 windows</td><td>Parallel, about 1 ms in total</td><td>One at a time, about 40 ms each → about 0.4 s</td></tr>
+      <tr><td>Works when RDP is minimized?</td><td>Yes (messages still deliver)</td><td>No (needs an active desktop)</td></tr>
+      <tr><td>Risk</td><td>Some frameworks ignore synthetic messages. <span class="badge b-t">TEST</span> on AIR.</td><td>Always works if the desktop is live</td></tr>
+    </tbody>
+  </table>
+  <h3>The "deepest child" detail</h3>
+  <p>Game windows are often nested, for example a frame window containing a content window. The message has to go to the <b>innermost window under the point</b>, with coordinates converted into <i>that</i> window's space. Send it to the outer frame and the game never sees it. This is the most common reason background clicks "don't work".</p>
+  <div class="filetag">app/win/input_post.py</div>
+<pre><code><span class="k">import</span> win32gui, win32con, win32api
+
+FLAGS = win32con.CWP_SKIPINVISIBLE | win32con.CWP_SKIPDISABLED
+
+<span class="k">def</span> <span class="f">deepest_child</span>(top: int, x: int, y: int) -&gt; tuple[int, tuple[int, int]]:
+    <span class="s">"""Walk down to the innermost child window at client point (x, y) of `top`."""</span>
+    hwnd, pt = top, (x, y)
+    <span class="k">while True</span>:
+        child = win32gui.ChildWindowFromPointEx(hwnd, pt, FLAGS)
+        <span class="k">if not</span> child <span class="k">or</span> child == hwnd:
+            <span class="k">return</span> hwnd, pt
+        sx, sy = win32gui.ClientToScreen(hwnd, pt)         <span class="c"># parent-client → screen</span>
+        pt = win32gui.ScreenToClient(child, (sx, sy))       <span class="c"># screen → child-client</span>
+        hwnd = child
+
+<span class="k">def</span> <span class="f">post_click</span>(top: int, x: int, y: int, hold_ms: int = <span class="num">0</span>) -&gt; None:
+    hwnd, (cx, cy) = deepest_child(top, x, y)
+    lp = win32api.MAKELONG(cx, cy)
+    win32gui.PostMessage(hwnd, win32con.WM_MOUSEMOVE, <span class="num">0</span>, lp)               <span class="c"># some engines need hover first</span>
+    win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lp)
+    <span class="k">if</span> hold_ms: time.sleep(hold_ms / <span class="num">1000</span>)                               <span class="c"># optional 10–30 ms if ignored</span>
+    win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, <span class="num">0</span>, lp)
+
+<span class="k">def</span> <span class="f">post_key</span>(top: int, vk: int) -&gt; None:
+    scan = win32api.MapVirtualKey(vk, <span class="num">0</span>)
+    win32gui.PostMessage(top, win32con.WM_KEYDOWN, vk, <span class="num">1</span> | (scan &lt;&lt; <span class="num">16</span>))
+    win32gui.PostMessage(top, win32con.WM_KEYUP,   vk, <span class="num">1</span> | (scan &lt;&lt; <span class="num">16</span>) | (<span class="num">0xC0</span> &lt;&lt; <span class="num">24</span>))</code></pre>
+  <div class="callout tech"><span class="t">If AIR ignores posted clicks, try these in order before falling back</span>
+    <ol>
+      <li><code>SendMessage</code> instead of <code>PostMessage</code>. It is synchronous, and Chromium uses it internally.</li>
+      <li>Send <code>WM_ACTIVATE(WA_ACTIVE)</code> and <code>WM_SETFOCUS</code> to the window first. Many engines drop input when they think they're inactive.</li>
+      <li>Add a 10–30 ms gap between down and up.</li>
+      <li>Send to the top-level window instead of the child (the opposite of the usual rule).</li>
+      <li>If all of these fail, the account uses <code>input_mode: "sendinput"</code>.</li>
+    </ol>
+    <p>The spike script in Phase 0 runs all five variants and prints which ones worked.</p>
+  </div>
+  <div class="filetag">app/win/input_send.py (fallback, serialized)</div>
+<pre><code>_input_lock = threading.Lock()     <span class="c"># ONE real mouse → strictly one window at a time</span>
+
+<span class="k">def</span> <span class="f">sendinput_click</span>(top: int, x: int, y: int) -&gt; None:
+    sx, sy = win32gui.ClientToScreen(top, (x, y))
+    <span class="k">with</span> _input_lock:
+        prev_fg, prev_pos = win32gui.GetForegroundWindow(), win32api.GetCursorPos()
+        force_foreground(top)                      <span class="c"># AttachThreadInput trick + SetForegroundWindow</span>
+        _send_abs_move(sx, sy)                     <span class="c"># SendInput MOUSEEVENTF_MOVE|ABSOLUTE|VIRTUALDESK (0..65535)</span>
+        _send(MOUSEEVENTF_LEFTDOWN); time.sleep(<span class="num">0.012</span>); _send(MOUSEEVENTF_LEFTUP)
+        win32api.SetCursorPos(prev_pos); force_foreground(prev_fg)</code></pre>
+  <div class="callout warn"><span class="t">Gotchas</span>
+    <ul>
+      <li><b>UIPI:</b> if the game runs as Administrator, the tool must too. Otherwise Windows silently drops our messages and input. Rule: run both at the same level.</li>
+      <li><b>Foreground lock:</b> <code>SetForegroundWindow</code> is refused unless the caller "owns" the input. The standard workaround is <code>AttachThreadInput</code> to the foreground thread, or sending a harmless ALT key press first.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ 10 CAPTURE ============================ -->
+<section id="capture">
+  <h2><span class="n">10</span>Seeing: capture &amp; triggers</h2>
+  <p class="kicker">How a pile of pixels becomes "Play button is ready in window 4".</p>
+  <div class="callout plain"><span class="t">Plain English</span>
+    <p>We never "read" the game. We look at it, the way you would.</p>
+    <p>For each window, the preset says something like: <i>"at 84% across and 90% down, the pixel should be this shade of green when Play is clickable"</i>. Every tick we check a few such pixels. If they all match within a tolerance, the trigger is <b>true</b>.</p>
+    <p>For harder cases we compare a small saved picture, such as the battle HUD, against a region of the window. That is template matching.</p>
+  </div>
+  <h3>Capture strategy</h3>
+  <ol>
+    <li><b>Primary:</b> the windows are tiled with no overlap and are never minimized, so what's on the desktop <i>is</i> each window's content. One <code>mss</code> grab of the bounding box of all active regions, then numpy slicing per account. Alternatively, one tiny grab per region when the regions are few and small (each is about 1 ms).</li>
+    <li><b>Fallback:</b> <code>PrintWindow(hwnd, hdc, PW_CLIENTONLY | PW_RENDERFULLCONTENT)</code> per window. It works for covered windows. Without flag 2, GPU-composited windows come back <b>black</b>. It costs about 5–20 ms per call, so limit it to about 5–10 Hz per window.</li>
+    <li><b>Optional:</b> Windows Graphics Capture (<code>windows-capture</code> / <code>zbl</code>) or <code>dxcam</code> (DXGI) on machines with a GPU. These are faster but need a live console session.</li>
+  </ol>
+  <div class="filetag">app/win/capture.py</div>
+<pre><code><span class="k">import</span> mss, numpy <span class="k">as</span> np
+
+<span class="k">class</span> <span class="f">DesktopCapture</span>:
+    <span class="k">def</span> <span class="f">__init__</span>(self):
+        self.sct = mss.mss()
+
+    <span class="k">def</span> <span class="f">grab</span>(self, rois: dict[str, tuple[int,int,int,int]]) -&gt; dict[str, np.ndarray]:
+        <span class="s">"""rois: {acc_id: (left, top, right, bottom)} in SCREEN coords → {acc_id: BGRA array}"""</span>
+        <span class="k">if not</span> rois: <span class="k">return</span> {}
+        L = min(r[<span class="num">0</span>] <span class="k">for</span> r <span class="k">in</span> rois.values()); T = min(r[<span class="num">1</span>] <span class="k">for</span> r <span class="k">in</span> rois.values())
+        R = max(r[<span class="num">2</span>] <span class="k">for</span> r <span class="k">in</span> rois.values()); B = max(r[<span class="num">3</span>] <span class="k">for</span> r <span class="k">in</span> rois.values())
+        shot = np.asarray(self.sct.grab({<span class="s">"left"</span>: L, <span class="s">"top"</span>: T, <span class="s">"width"</span>: R-L, <span class="s">"height"</span>: B-T}))
+        <span class="k">return</span> {a: shot[t-T:b-T, l-L:r-L] <span class="k">for</span> a, (l, t, r, b) <span class="k">in</span> rois.items()}   <span class="c"># zero-copy views</span></code></pre>
+  <h3>Trigger types</h3>
+  <table>
+    <thead><tr><th>Type</th><th>What it checks</th><th>Cost</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr><td><code>pixel</code></td><td>The mean colour of a 3×3 patch at one point is within <code>tol</code> of <code>rgb</code></td><td>~µs</td><td>A button that turns green</td></tr>
+      <tr><td><code>pixel_all</code></td><td>Every one of several points matches (logical AND)</td><td>~µs</td><td>Robust screen identity ("this is the lobby")</td></tr>
+      <tr><td><code>pixel_any</code></td><td>At least one point matches (logical OR)</td><td>~µs</td><td>Several possible button positions</td></tr>
+      <tr><td><code>template</code></td><td><code>cv2.matchTemplate(TM_CCOEFF_NORMED) ≥ thr</code> within a search region</td><td>&lt;1 ms per 100×40 region</td><td>Battle HUD, a dialog, a button that moves a little</td></tr>
+      <tr><td><code>not</code></td><td>Inverts another trigger</td><td>~0</td><td>"Play button gone" (to verify a click)</td></tr>
+    </tbody>
+  </table>
+  <div class="filetag">app/triggers.py</div>
+<pre><code><span class="k">def</span> <span class="f">pixel_match</span>(img: np.ndarray, x: int, y: int, rgb: tuple, tol: int) -&gt; bool:
+    patch = img[max(y-<span class="num">1</span>,<span class="num">0</span>):y+<span class="num">2</span>, max(x-<span class="num">1</span>,<span class="num">0</span>):x+<span class="num">2</span>, :<span class="num">3</span>].reshape(-<span class="num">1</span>, <span class="num">3</span>).mean(axis=<span class="num">0</span>)  <span class="c"># BGR mean of 3×3</span>
+    b, g, r = patch
+    <span class="k">return</span> max(abs(r-rgb[<span class="num">0</span>]), abs(g-rgb[<span class="num">1</span>]), abs(b-rgb[<span class="num">2</span>])) &lt;= tol    <span class="c"># Chebyshev distance</span>
+
+<span class="k">def</span> <span class="f">template_match</span>(img, tmpl_gray, region, thr) -&gt; bool:
+    roi = cv2.cvtColor(crop(img, region), cv2.COLOR_BGRA2GRAY)
+    <span class="k">return</span> cv2.minMaxLoc(cv2.matchTemplate(roi, tmpl_gray, cv2.TM_CCOEFF_NORMED))[<span class="num">1</span>] &gt;= thr</code></pre>
+  <div class="callout tech"><span class="t">Keeping the CPU low with 10 windows</span>
+    <ul>
+      <li>Only grab regions the <i>current state</i> needs. WATCH needs the Play button region. IN_BATTLE needs only a small HUD patch, checked at 2–5 Hz.</li>
+      <li>Load template images once, at startup, in greyscale.</li>
+      <li>Never call <code>GetPixel</code> in a loop. Each call is a separate round-trip to Windows' drawing system and is very slow.</li>
+      <li>The loop sleeps for the rest of each tick and never spins.</li>
+    </ul>
+    <p>Expected cost is a few percent of one core for 10 accounts. The 10 game clients will use far more CPU than our tool.</p>
+  </div>
+</section>
+
+<!-- ============================ 11 COORDS ============================ -->
+<section id="coords">
+  <h2><span class="n">11</span>Coordinates, DPI &amp; tiling</h2>
+  <p class="kicker">How one preset stays correct across 10 windows, different VPSs and display scaling.</p>
+  <div class="grid2">
+  <div>
+  <h3 style="margin-top:0">Three coordinate spaces</h3>
+  <ul>
+    <li><b>Screen space:</b> pixels from the top-left of the desktop. Used for capture and SendInput.</li>
+    <li><b>Client space:</b> pixels from the top-left of the game's drawable area, excluding the title bar and borders. Used for PostMessage.</li>
+    <li><b>Ratio space</b> (what presets store): <code>x/client_w</code>, <code>y/client_h</code>, both 0..1. The same numbers work for every window size.</li>
+  </ul>
+  <pre><code><span class="c"># preset → this window</span>
+cw, ch = client_size(hwnd)                <span class="c"># GetClientRect</span>
+cx, cy = round(rx * cw), round(ry * ch)   <span class="c"># ratio → client</span>
+sx, sy = ClientToScreen(hwnd, (cx, cy))   <span class="c"># client → screen (capture)</span>
+
+<span class="c"># picker → preset</span>
+cx, cy = ScreenToClient(hwnd, cursor)
+rx, ry = cx / cw, cy / ch</code></pre>
+  <p><b>Example:</b> Play is at client (539, 434) in a 640×480 window, so the ratio is (0.842, 0.904). In an 800×600 window that becomes (674, 542).</p>
+  </div>
+  <div>
+  <div class="diagram" style="margin-top:0">
+  <svg viewBox="0 0 440 330" role="img" aria-label="tiling grid" style="min-width:0">
+    <rect x="10" y="10" width="420" height="300" rx="6" style="fill:var(--bg2);stroke:var(--border)"/>
+    <text x="20" y="28" class="t-xs">Desktop 1920×1080 (scaled) · 4 cols × 3 rows · 640×480 → ~470×352 each at 1920 wide</text>
+    <g>
+      <rect class="box-a" x="20" y="40" width="96" height="76" rx="3"/><text x="28" y="58" class="t-xs">acc1</text>
+      <rect class="box" x="122" y="40" width="96" height="76" rx="3"/><text x="130" y="58" class="t-xs">acc2</text>
+      <rect class="box" x="224" y="40" width="96" height="76" rx="3"/><text x="232" y="58" class="t-xs">acc3</text>
+      <rect class="box" x="326" y="40" width="96" height="76" rx="3"/><text x="334" y="58" class="t-xs">acc4</text>
+      <rect class="box" x="20" y="122" width="96" height="76" rx="3"/><text x="28" y="140" class="t-xs">acc5</text>
+      <rect class="box" x="122" y="122" width="96" height="76" rx="3"/><text x="130" y="140" class="t-xs">acc6</text>
+      <rect class="box" x="224" y="122" width="96" height="76" rx="3"/><text x="232" y="140" class="t-xs">acc7</text>
+      <rect class="box" x="326" y="122" width="96" height="76" rx="3"/><text x="334" y="140" class="t-xs">acc8</text>
+      <rect class="box" x="20" y="204" width="96" height="76" rx="3"/><text x="28" y="222" class="t-xs">acc9</text>
+      <rect class="box" x="122" y="204" width="96" height="76" rx="3"/><text x="130" y="222" class="t-xs">acc10</text>
+      <rect class="box-i" x="224" y="204" width="198" height="76" rx="3"/><text x="234" y="236" class="t-s">Commander UI</text><text x="234" y="254" class="t-xs">(never overlaps a game)</text>
+      <circle cx="101" cy="106" r="4" style="fill:var(--accent)"/><text x="40" y="104" class="t-xs" style="fill:var(--accent)">Play</text>
+    </g>
+    <text x="20" y="300" class="t-xs">Slot i → col = i % cols, row = i // cols → x = col·(w+gap), y = row·(h+gap)</text>
+  </svg>
+  </div>
+  </div>
+  </div>
+  <h3>DPI awareness: the silent killer</h3>
+  <p>If the VPS runs at 125% or 150% scaling and our process is <i>not</i> DPI-aware, Windows lies to us. It "virtualizes" coordinates, so every click lands in the wrong place. The fix is the very first line of <code>main.py</code>:</p>
+<pre><code><span class="k">import</span> ctypes
+ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-<span class="num">4</span>))   <span class="c"># PER_MONITOR_AWARE_V2</span></code></pre>
+  <h3>Tiling at an exact client size</h3>
+  <p>A window's outer size includes the title bar and borders, which vary by theme. To get exactly 640×480 of <i>game</i> area, ask Windows how big the outer frame must be:</p>
+<pre><code><span class="k">def</span> <span class="f">place_client</span>(hwnd, x, y, cw, ch):
+    style   = user32.GetWindowLongW(hwnd, GWL_STYLE)
+    exstyle = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+    rc = RECT(<span class="num">0</span>, <span class="num">0</span>, cw, ch)
+    user32.AdjustWindowRectExForDpi(byref(rc), style, <span class="k">False</span>, exstyle, user32.GetDpiForWindow(hwnd))
+    user32.SetWindowPos(hwnd, <span class="k">None</span>, x, y, rc.right-rc.left, rc.bottom-rc.top,
+                        SWP_NOZORDER | SWP_NOACTIVATE)
+    <span class="c"># verify: GetClientRect must now equal (cw, ch); re-apply if the game resized itself</span></code></pre>
+  <div class="callout warn"><span class="t">To test in Phase 0</span>
+    <p><span class="badge b-t">TEST</span> Does ProTanki's content <b>scale</b> with the window (Flash <code>StageScaleMode</code>), or does it <b>reflow or crop</b> at fixed pixel sizes?</p>
+    <ul>
+      <li>If it scales, ratio coordinates just work.</li>
+      <li>If it doesn't, we enforce one identical client size for all windows. Ratios still work then, because every window is the same size.</li>
+    </ul>
+    <p>We also need the minimum usable size. For tiling 10 windows on 1920×1080, the ideal is about 470×350 each.</p>
+  </div>
+</section>
+
+<!-- ============================ 12 MULTI ============================ -->
+<section id="multi">
+  <h2><span class="n">12</span>Running 10 clients at once</h2>
+  <p class="kicker">How we get around Adobe AIR's "one instance per app" rule.</p>
+  <div class="callout plain"><span class="t">Plain English</span>
+    <p>Adobe AIR checks the app's ID card (an ID string inside a file called <code>application.xml</code>). If a copy with that ID is already running, it refuses to start another one.</p>
+    <p>So we give each account its <b>own copy of the game folder with a different ID card</b>: <code>ProTanki.acc1</code>, <code>ProTanki.acc2</code>, and so on. Windows then treats them as 10 different apps. It costs disk space (about 100–400 MB per copy), which is fine on a VPS.</p>
+  </div>
+  <div class="filetag">tools/clone_install.py (sketch)</div>
+<pre><code>SRC = Path(<span class="s">r"C:\Program Files (x86)\ProTanki Online"</span>)
+
+<span class="k">def</span> <span class="f">clone</span>(acc_id: str, dst_root=Path(<span class="s">r"C:\ProTanki"</span>)) -&gt; Path:
+    dst = dst_root / acc_id
+    shutil.copytree(SRC, dst, dirs_exist_ok=<span class="k">True</span>)
+    xml = dst / <span class="s">"META-INF"</span> / <span class="s">"AIR"</span> / <span class="s">"application.xml"</span>
+    txt = xml.read_text(encoding=<span class="s">"utf-8"</span>)
+    txt = re.sub(<span class="s">r"&lt;id&gt;([^&lt;]+)&lt;/id&gt;"</span>, <span class="k">lambda</span> m: <span class="s">f"&lt;id&gt;{m.group(1)}.{acc_id}&lt;/id&gt;"</span>, txt, count=<span class="num">1</span>)
+    xml.write_text(txt, encoding=<span class="s">"utf-8"</span>)
+    <span class="k">return</span> dst / <span class="s">"ProTanki.exe"</span></code></pre>
+  <table>
+    <thead><tr><th>Plan</th><th>How</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td><b>A · Folder clone + app-id patch</b></td><td>As above, one folder per account</td><td><span class="badge b-t">TEST</span> The community launcher uses the unique-ID approach. We need to check that the captive runtime doesn't verify a signature over <code>application.xml</code>.</td></tr>
+      <tr><td>B · Official multi-instance</td><td>Just launch it N times</td><td><span class="badge b-t">TEST</span> Unlikely to work, given AIR's documented behaviour</td></tr>
+      <tr><td>C · Sandboxie-Plus</td><td>Each instance in its own sandbox (separate mutex and namespace)</td><td>A reliable fallback. Free and open source.</td></tr>
+      <tr><td>D · Separate Windows users</td><td><code>runas</code> per account</td><td>Heavy. Last resort.</td></tr>
+      <tr><td>E · Ask the client</td><td>They may already run several accounts somehow</td><td>A proposal question</td></tr>
+    </tbody>
+  </table>
+  <h3>Binding a window to an account</h3>
+<pre><code>proc = subprocess.Popen([str(exe)], cwd=exe.parent)
+pids = {proc.pid} | {c.pid <span class="k">for</span> c <span class="k">in</span> psutil.Process(proc.pid).children(recursive=<span class="k">True</span>)}
+
+<span class="k">def</span> <span class="f">find_window</span>(pids):
+    found = []
+    <span class="k">def</span> <span class="f">cb</span>(h, _):
+        <span class="k">if</span> win32gui.IsWindowVisible(h) <span class="k">and</span> win32process.GetWindowThreadProcessId(h)[<span class="num">1</span>] <span class="k">in</span> pids:
+            <span class="k">if</span> win32gui.GetWindowText(h): found.append(h)
+    win32gui.EnumWindows(cb, <span class="k">None</span>)
+    <span class="k">return</span> found[<span class="num">0</span>] <span class="k">if</span> found <span class="k">else None</span>
+
+hwnd = wait_until(<span class="k">lambda</span>: find_window(pids), timeout=<span class="num">60</span>)
+win32gui.SetWindowText(hwnd, <span class="s">f"PT-{acc.id} · {acc.name}"</span>)   <span class="c"># visible label, also used to re-find</span></code></pre>
+  <div class="callout tech"><span class="t">Alternative: attach mode</span>
+    <p>If the client prefers to launch and log in manually, the tool can <b>attach</b> to already-open windows instead. The Add Account wizard says "click on the game window", reads the HWND under the cursor, and binds it to an account slot. This is supported from day one.</p>
+  </div>
+</section>
+
+<!-- ============================ 13 EXIT ============================ -->
+<section id="exit">
+  <h2><span class="n">13</span>Exit All</h2>
+  <p class="kicker">The feature the client cares about most. It has several layers, starts with the fastest, and always ends with a guarantee.</p>
+  <div class="diagram">
+  <svg viewBox="0 0 1000 220" role="img" aria-label="Exit all timeline">
+    <line class="ln" x1="40" y1="170" x2="960" y2="170"/>
+    <g class="t-m"><text x="34" y="192">0</text><text x="210" y="192">100</text><text x="400" y="192">500</text><text x="610" y="192">1500</text><text x="820" y="192">2000</text><text x="900" y="192">3500 ms</text></g>
+    <rect class="box-d" x="40" y="40" width="40" height="110" rx="6"/><text x="46" y="32" class="t-xs" style="fill:var(--danger)">trigger</text>
+    <text x="40" y="20" class="t-s t-b">Ctrl+Alt+X / button / Telegram → EXIT_ALL.set()</text>
+    <rect class="box-w" x="84" y="50" width="170" height="40" rx="6"/><text x="92" y="75" style="font-size:12px">Phase A: exit seq → ALL windows</text>
+    <rect class="box-a" x="256" y="50" width="300" height="40" rx="6"/><text x="266" y="75" style="font-size:12px">verify lobby seen → EXITED (most done here)</text>
+    <rect class="box-p" x="560" y="100" width="220" height="40" rx="6"/><text x="570" y="125" style="font-size:12px">Phase B: WM_CLOSE (close_client)</text>
+    <rect class="box-d" x="784" y="100" width="170" height="40" rx="6"/><text x="794" y="125" style="font-size:12px">Phase C: kill() — guaranteed</text>
+  </svg>
+  </div>
+  <p class="cap">Figure 4: Exit All timeline. Phase A finishes in well under 1 s for all accounts. B and C only run for windows that didn't respond, or when the mode is "close client".</p>
+  <table>
+    <thead><tr><th><code>exit_mode</code></th><th>Behaviour</th><th>Use when</th></tr></thead>
+    <tbody>
+      <tr><td><code>leave_battle</code> (default)</td><td>Run the exit sequence in every window, then verify the lobby is showing</td><td>Leave fast, keep clients open for the next round</td></tr>
+      <tr><td><code>close_client</code></td><td>Exit sequence → WM_CLOSE → kill after 2 s</td><td>"Get out of everything, now"</td></tr>
+      <tr><td><code>kill</code></td><td><code>psutil.kill()</code> on every tracked PID immediately (TerminateProcess)</td><td>Panic button. The server sees each connection drop within milliseconds.</td></tr>
+    </tbody>
+  </table>
+<pre><code><span class="k">def</span> <span class="f">exit_all</span>(self, mode=<span class="s">"leave_battle"</span>):
+    t0 = time.perf_counter()
+    EXIT_ALL.set()                                        <span class="c"># every FSM sees it on its next step / wait</span>
+    <span class="k">if</span> mode == <span class="s">"kill"</span>:
+        procs = [psutil.Process(p) <span class="k">for</span> a <span class="k">in</span> self.accounts <span class="k">for</span> p <span class="k">in</span> a.pids <span class="k">if</span> psutil.pid_exists(p)]
+        <span class="k">for</span> p <span class="k">in</span> procs: p.kill()
+        psutil.wait_procs(procs, timeout=<span class="num">2</span>)
+    <span class="k">else</span>:
+        <span class="k">for</span> a <span class="k">in</span> self.accounts:                          <span class="c"># all posted in the SAME loop → parallel</span>
+            self.dispatcher.run_sequence(a, <span class="s">"exit"</span>, priority=<span class="k">True</span>)
+    log.info(<span class="s">"EXIT_ALL dispatched to %d accounts in %.1f ms"</span>, len(self.accounts), (time.perf_counter()-t0)*<span class="num">1000</span>)</code></pre>
+  <div class="callout good"><span class="t">Why this is "instant"</span>
+    <ul>
+      <li>The trigger is a <code>threading.Event</code>, so there's no polling delay.</li>
+      <li>Posted messages to 10 windows take about 1 ms in total.</li>
+      <li>The only real delay is the game showing its exit menu (~100–300 ms).</li>
+      <li>Every wait inside a sequence uses <code>EXIT_ALL.wait(timeout)</code> instead of <code>sleep</code>. So an account in the middle of a join sequence aborts immediately instead of finishing its clicks.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ 14 RELIABLE ============================ -->
+<section id="reliable">
+  <h2><span class="n">14</span>Reliability &amp; watchdog</h2>
+  <p class="kicker">How we back up "without missing actions" and "without crashing".</p>
+  <div class="grid2">
+    <div class="card"><h4>Verify-after-click loop</h4>
+      <ol>
+        <li>Click → record <code>t_click</code> and the expected outcome (<code>in_battle</code>, or <code>not join_ready</code>).</li>
+        <li>After 80–200 ms, check the outcome on the next frames.</li>
+        <li>No change → re-click, with backoff of 150, 300, then 600 ms.</li>
+        <li>3 failures → escalate: switch that account to <code>sendinput</code>, retry once, then raise an alert.</li>
+        <li>The guard rule: never click Join unless <code>join_ready</code> is true <i>now</i>. That makes clicks safe to repeat, so they never double-act.</li>
+      </ol></div>
+    <div class="card"><h4>Watchdog (every tick, very cheap)</h4>
+      <ul>
+        <li><code>psutil.pid_exists(pid)</code> is false → the client crashed → relaunch.</li>
+        <li><code>IsWindow(hwnd)</code> is false → the window is lost → re-find it by PID or title.</li>
+        <li>The window was moved or resized → re-tile.</li>
+        <li><code>IsIconic(hwnd)</code> (minimized) → restore it with <code>SW_SHOWNOACTIVATE</code>.</li>
+        <li>The state hasn't changed for N seconds when it should have → run the <code>recover</code> sequence (Esc, go to lobby).</li>
+        <li>The capture frame is all black → the desktop isn't rendering → <b>RDP warning</b> in the UI and on Telegram.</li>
+      </ul></div>
+    <div class="card"><h4>Fault isolation</h4>
+      <ul>
+        <li>Each account's step is wrapped in try/except. One bad account can't stop the others.</li>
+        <li>The engine thread restarts itself if it dies, with a supervisor in <code>main.py</code>.</li>
+        <li>The UI only reads a state snapshot, so a UI freeze never blocks clicks.</li>
+      </ul></div>
+    <div class="card"><h4>Logging &amp; evidence</h4>
+      <ul>
+        <li>Rotating file <code>logs/YYYY-MM-DD.log</code>.</li>
+        <li>One line per action: <code>12:00:01.234 acc3 JOIN click play_btn (539,434) post lat=63ms ✓</code></li>
+        <li>When a verify fails, the region is saved as a PNG in <code>logs/fail/</code>. You can see exactly what the tool saw.</li>
+        <li>Counters per account: clicks, joins, misses, average reaction time.</li>
+      </ul></div>
+  </div>
+</section>
+
+<!-- ============================ 15 CONFIG ============================ -->
+<section id="config">
+  <h2><span class="n">15</span>Config &amp; presets</h2>
+  <p class="kicker">Everything that can change is data, not code. When the game updates, you re-pick positions; nobody rebuilds anything.</p>
+  <div class="filetag">config/accounts.json</div>
+<pre><code>{
+  <span class="s">"layout"</span>:  { <span class="s">"cols"</span>: <span class="num">4</span>, <span class="s">"client_w"</span>: <span class="num">640</span>, <span class="s">"client_h"</span>: <span class="num">480</span>, <span class="s">"gap"</span>: <span class="num">4</span>, <span class="s">"origin"</span>: [<span class="num">0</span>, <span class="num">0</span>] },
+  <span class="s">"hotkeys"</span>: { <span class="s">"exit_all"</span>: <span class="s">"ctrl+alt+x"</span>, <span class="s">"pause_all"</span>: <span class="s">"ctrl+alt+p"</span>, <span class="s">"kill_all"</span>: <span class="s">"ctrl+alt+k"</span> },
+  <span class="s">"exit_mode"</span>: <span class="s">"leave_battle"</span>,
+  <span class="s">"telegram"</span>: { <span class="s">"enabled"</span>: <span class="k">false</span>, <span class="s">"token"</span>: <span class="s">""</span>, <span class="s">"allowed_user_id"</span>: <span class="num">0</span> },
+  <span class="s">"accounts"</span>: [
+    { <span class="s">"id"</span>: <span class="s">"acc1"</span>, <span class="s">"name"</span>: <span class="s">"Tanker01"</span>, <span class="s">"enabled"</span>: <span class="k">true</span>,
+      <span class="s">"mode"</span>: <span class="s">"launch"</span>,                          <span class="c">// "launch" | "attach"</span>
+      <span class="s">"install_dir"</span>: <span class="s">"C:/ProTanki/acc1"</span>, <span class="s">"exe"</span>: <span class="s">"ProTanki.exe"</span>, <span class="s">"args"</span>: [],
+      <span class="s">"preset"</span>: <span class="s">"gold-rush"</span>, <span class="s">"input_mode"</span>: <span class="s">"post"</span>, <span class="s">"slot"</span>: <span class="num">0</span> }
+  ]
+}</code></pre>
+  <div class="filetag">config/presets/gold-rush.json</div>
+<pre><code>{
+  <span class="s">"base_resolution"</span>: [<span class="num">640</span>, <span class="num">480</span>],
+  <span class="s">"poll_ms"</span>: <span class="num">40</span>,
+  <span class="s">"points"</span>: {                                         <span class="c">// ratios of the client area (0..1)</span>
+    <span class="s">"battles_btn"</span>: { <span class="s">"x"</span>: <span class="num">0.512</span>, <span class="s">"y"</span>: <span class="num">0.031</span> },
+    <span class="s">"play_btn"</span>:    { <span class="s">"x"</span>: <span class="num">0.842</span>, <span class="s">"y"</span>: <span class="num">0.905</span> },
+    <span class="s">"exit_btn"</span>:    { <span class="s">"x"</span>: <span class="num">0.500</span>, <span class="s">"y"</span>: <span class="num">0.560</span> }
+  },
+  <span class="s">"triggers"</span>: {
+    <span class="s">"join_ready"</span>: { <span class="s">"type"</span>: <span class="s">"pixel_all"</span>, <span class="s">"debounce"</span>: <span class="num">1</span>, <span class="s">"checks"</span>: [
+        { <span class="s">"at"</span>: <span class="s">"play_btn"</span>, <span class="s">"rgb"</span>: [<span class="num">96</span>, <span class="num">200</span>, <span class="num">64</span>], <span class="s">"tol"</span>: <span class="num">18</span> },
+        { <span class="s">"x"</span>: <span class="num">0.80</span>, <span class="s">"y"</span>: <span class="num">0.905</span>, <span class="s">"rgb"</span>: [<span class="num">90</span>, <span class="num">190</span>, <span class="num">60</span>], <span class="s">"tol"</span>: <span class="num">18</span> } ] },
+    <span class="s">"in_battle"</span>:  { <span class="s">"type"</span>: <span class="s">"template"</span>, <span class="s">"img"</span>: <span class="s">"templates/hud.png"</span>, <span class="s">"region"</span>: [<span class="num">0</span>, <span class="num">0</span>, <span class="num">0.3</span>, <span class="num">0.1</span>], <span class="s">"thr"</span>: <span class="num">0.85</span> },
+    <span class="s">"lobby"</span>:      { <span class="s">"type"</span>: <span class="s">"pixel_all"</span>, <span class="s">"checks"</span>: [ { <span class="s">"x"</span>: <span class="num">0.1</span>, <span class="s">"y"</span>: <span class="num">0.1</span>, <span class="s">"rgb"</span>: [<span class="num">30</span>, <span class="num">30</span>, <span class="num">30</span>], <span class="s">"tol"</span>: <span class="num">10</span> } ] }
+  },
+  <span class="s">"sequences"</span>: {
+    <span class="s">"open_list"</span>: [ { <span class="s">"click"</span>: <span class="s">"battles_btn"</span> } ],
+    <span class="s">"join"</span>:      [ { <span class="s">"click"</span>: <span class="s">"play_btn"</span>, <span class="s">"verify"</span>: <span class="s">"in_battle"</span>, <span class="s">"retries"</span>: <span class="num">3</span> } ],
+    <span class="s">"exit"</span>:      [ { <span class="s">"key"</span>: <span class="s">"ESC"</span> }, { <span class="s">"wait_ms"</span>: <span class="num">150</span> }, { <span class="s">"click"</span>: <span class="s">"exit_btn"</span>, <span class="s">"verify"</span>: <span class="s">"lobby"</span> } ],
+    <span class="s">"anti_afk"</span>:  [ { <span class="s">"key"</span>: <span class="s">"W"</span>, <span class="s">"hold_ms"</span>: <span class="num">80</span> } ],
+    <span class="s">"recover"</span>:   [ { <span class="s">"key"</span>: <span class="s">"ESC"</span> }, { <span class="s">"wait_ms"</span>: <span class="num">300</span> }, { <span class="s">"key"</span>: <span class="s">"ESC"</span> } ]
+  },
+  <span class="s">"timeouts"</span>: { <span class="s">"join_s"</span>: <span class="num">6</span>, <span class="s">"launch_s"</span>: <span class="num">60</span>, <span class="s">"anti_afk_every_s"</span>: <span class="num">120</span>, <span class="s">"stuck_s"</span>: <span class="num">90</span> },
+  <span class="s">"humanize"</span>: { <span class="s">"enabled"</span>: <span class="k">false</span>, <span class="s">"jitter_px"</span>: <span class="num">2</span>, <span class="s">"delay_ms"</span>: [<span class="num">20</span>, <span class="num">80</span>] }
+}</code></pre>
+  <div class="callout plain"><span class="t">How a user reads this</span>
+    <ul>
+      <li><b>points</b>: named places on the screen.</li>
+      <li><b>triggers</b>: "how do I know X is happening?"</li>
+      <li><b>sequences</b>: "what do I click, and in what order?"</li>
+      <li><b>timeouts</b>: "how long do I wait before giving up or retrying?"</li>
+    </ul>
+    <p>Everything is edited from the UI with the picker. The JSON is there for power users and backups. The files are reloaded automatically when they change on disk.</p>
+  </div>
+</section>
+
+<!-- ============================ 16 VPS ============================ -->
+<section id="vps">
+  <h2><span class="n">16</span>VPS operations</h2>
+  <p class="kicker">The section that shows the client we've actually run automation on a VPS before.</p>
+  <div class="callout danger"><span class="t">The trap</span>
+    <p>A Windows VPS only "draws" its desktop while someone is looking.</p>
+    <ul>
+      <li><b>Minimize</b> the Remote Desktop window: the session drops into a GUI-less mode. Screenshots come back black and SendInput fails.</li>
+      <li><b>Close</b> Remote Desktop: the session is <b>locked</b>, with the same result.</li>
+    </ul>
+    <p>Posted clicks still arrive, but we can no longer <i>see</i> anything, so triggers never fire. The tool looks like it "randomly stops working at night".</p>
+  </div>
+  <h3>Fix 1: Minimized RDP window (run on the client's own PC, not the VPS)</h3>
+  <div class="filetag">vps/fix_rdp_minimized.reg</div>
+<pre><code>Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Microsoft\Terminal Server Client]
+"RemoteDesktop_SuppressWhenMinimized"=dword:00000002
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Terminal Server Client]
+"RemoteDesktop_SuppressWhenMinimized"=dword:00000002
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Terminal Server Client]
+"RemoteDesktop_SuppressWhenMinimized"=dword:00000002</code></pre>
+  <p>Then reconnect. You can now minimize the RDP window and the VPS keeps rendering.</p>
+  <h3>Fix 2: Leaving without locking (run on the VPS as Administrator, instead of clicking ✕)</h3>
+  <div class="filetag">vps/Disconnect-Keep-Running.bat</div>
+<pre><code>@echo off
+<span class="c">:: Moves this RDP session to the console: stays unlocked and keeps rendering.</span>
+<span class="c">:: "query user" line while connected:  &gt;username  rdp-tcp#0  2  Active ...  → token 3 = session ID</span>
+for /f "skip=1 tokens=3" %%s in ('query user %USERNAME%') do (
+  %windir%\System32\tscon.exe %%s /dest:console
+)</code></pre>
+  <p class="cap">This works while you're connected, because the active RDP session has a session name, so the ID is token 3. The tool also ships a PowerShell version that parses the columns by header. We confirm it on the client's Windows Server version in Phase 4.</p>
+  <h3>Fix 3: Console resolution</h3>
+  <p>After <code>tscon</code>, the console often falls back to 1024×768, which breaks the 10-window grid. Options:</p>
+  <ul>
+    <li>The tool calls <code>ChangeDisplaySettingsEx</code> at startup to force 1920×1080, or whatever <code>layout</code> needs.</li>
+    <li>Optionally install <b>Virtual Display Driver</b> (<code>winget install --id=VirtualDrivers.Virtual-Display-Driver -e</code>) for a permanent virtual monitor.</li>
+    <li>Most robust: run a VNC server attached to the console, plus Sysinternals Autologon. Then RDP is only used for setup.</li>
+  </ul>
+  <h3>Sizing the VPS</h3>
+  <table>
+    <thead><tr><th>Item</th><th>Estimate</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Commander tool</td><td>~80–120 MB RAM, &lt;3% of one core</td><td>Measured in the demo</td></tr>
+      <tr><td>Each ProTanki client</td><td>~300–600 MB RAM <span class="badge b-i">I</span></td><td>Set game graphics to minimum and turn off auto-quality</td></tr>
+      <tr><td>10 clients without a GPU</td><td>Software rendering is CPU-heavy</td><td>Recommend <b>8 vCPU / 12–16 GB</b>. Benchmark in Phase 0.</td></tr>
+      <tr><td>Disk</td><td>10 install copies</td><td>A few GB at most</td></tr>
+    </tbody>
+  </table>
+  <p>Optional extra for the tool: pin each client to particular cores with <code>psutil.Process(pid).cpu_affinity([...])</code>, and set clients that are only watching to BELOW_NORMAL priority.</p>
+</section>
+
+<!-- ============================ 17 UI ============================ -->
+<section id="ui">
+  <h2><span class="n">17</span>The control panel UI</h2>
+  <p class="kicker">What the client sees. A wireframe built in HTML. The real PySide6 build follows the same layout.</p>
+  <div class="mock">
+    <div class="bar">
+      <b style="font-size:14px">⛨ ProTanki Commander</b>
+      <span class="sel">Preset: gold-rush ▾</span>
+      <span class="btn g">▶ Start all</span><span class="btn">⏸ Pause</span><span class="btn">⌖ Pick coordinate</span><span class="btn">＋ Add account</span>
+      <span class="sp"></span>
+      <span class="meter">CPU 2.1% · RAM 104 MB · tick 40 ms</span>
+      <span class="btn r">⏻ EXIT ALL  (Ctrl+Alt+X)</span>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Account</th><th>Window</th><th>State</th><th>Joins</th><th>Misses</th><th>Avg react</th><th>Last action</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Tanker01</td><td>● bound</td><td><span class="st battle">IN_BATTLE</span></td><td>14</td><td>0</td><td>58 ms</td><td>12:04:11.204 join ✓</td><td>⏸ ⌕</td></tr>
+        <tr><td>2</td><td>Tanker02</td><td>● bound</td><td><span class="st watch">WATCH</span></td><td>13</td><td>0</td><td>61 ms</td><td>12:03:52.880 lobby</td><td>⏸ ⌕</td></tr>
+        <tr><td>3</td><td>Tanker03</td><td>● bound</td><td><span class="st join">JOIN</span></td><td>14</td><td>0</td><td>55 ms</td><td>12:04:11.198 click play</td><td>⏸ ⌕</td></tr>
+        <tr><td>4</td><td>Tanker04</td><td>● bound</td><td><span class="st lobby">LOBBY</span></td><td>12</td><td>1</td><td>72 ms</td><td>12:04:02.117 open list</td><td>⏸ ⌕</td></tr>
+        <tr><td>5</td><td>Tanker05</td><td>○ relaunching</td><td><span class="st err">LAUNCH</span></td><td>9</td><td>0</td><td>64 ms</td><td>12:04:09.001 pid died → relaunch</td><td>⏸ ⌕</td></tr>
+      </tbody>
+    </table>
+    <div class="log">
+      12:04:11.198 acc3 WATCH→JOIN join_ready ✓ · click play_btn (539,434) via post<br>
+      12:04:11.204 acc1 JOIN→IN_BATTLE verified in 112 ms · reaction 58 ms<br>
+      12:04:09.001 <i>acc5 watchdog: pid 8812 gone → relaunch (1/3)</i><br>
+      12:03:40.551 <b>EXIT_ALL (hotkey) → 10 accounts dispatched in 0.9 ms · all in lobby after 412 ms</b>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><h4>Coordinate picker</h4>
+      <ol>
+        <li>Click <b>Pick coordinate</b>. A transparent, always-on-top overlay covers the screen, with a crosshair and a ×8 magnifier.</li>
+        <li>Hover over the game's Play button. A live readout shows the window, the client (x, y), the ratio and the RGB.</li>
+        <li>Click to capture, name the point (<code>play_btn</code>), and tick "also create trigger" with a tolerance slider.</li>
+        <li>Press <b>Test</b>. The tool shows a live ✓/✗ for the trigger in every window, so you can confirm it before saving.</li>
+      </ol></div>
+    <div class="card"><h4>Add Account wizard</h4>
+      <ol>
+        <li>Name the account.</li>
+        <li>Choose <b>Launch</b> (clone the install folder automatically) or <b>Attach</b> (click an already-open window).</li>
+        <li>Pick a slot in the grid (or auto), and pick a preset.</li>
+        <li>Save. It's written to <code>accounts.json</code> and starts immediately.</li>
+      </ol>
+      <p>To remove an account, click 🗑 on its row (or set <code>enabled:false</code>).</p></div>
+  </div>
+</section>
+
+<!-- ============================ 18 HOTKEY ============================ -->
+<section id="hotkey">
+  <h2><span class="n">18</span>Hotkey &amp; remote triggers</h2>
+  <p class="kicker">Ways to fire Exit All, from any context.</p>
+  <div class="filetag">app/win/hotkeys.py</div>
+<pre><code><span class="k">import</span> ctypes, ctypes.wintypes <span class="k">as</span> wt
+user32 = ctypes.windll.user32
+MOD_ALT, MOD_CONTROL, MOD_NOREPEAT, WM_HOTKEY = <span class="num">0x1</span>, <span class="num">0x2</span>, <span class="num">0x4000</span>, <span class="num">0x0312</span>
+
+<span class="k">def</span> <span class="f">hotkey_thread</span>(bus):
+    user32.RegisterHotKey(<span class="k">None</span>, <span class="num">1</span>, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, ord(<span class="s">"X"</span>))   <span class="c"># EXIT ALL</span>
+    user32.RegisterHotKey(<span class="k">None</span>, <span class="num">2</span>, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, ord(<span class="s">"K"</span>))   <span class="c"># KILL ALL</span>
+    user32.RegisterHotKey(<span class="k">None</span>, <span class="num">3</span>, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, ord(<span class="s">"P"</span>))   <span class="c"># PAUSE ALL</span>
+    msg = wt.MSG()
+    <span class="k">while</span> user32.GetMessageW(ctypes.byref(msg), <span class="k">None</span>, <span class="num">0</span>, <span class="num">0</span>) &gt; <span class="num">0</span>:              <span class="c"># blocks, 0% CPU</span>
+        <span class="k">if</span> msg.message == WM_HOTKEY:
+            bus.put({<span class="num">1</span>: <span class="s">"EXIT_ALL"</span>, <span class="num">2</span>: <span class="s">"KILL_ALL"</span>, <span class="num">3</span>: <span class="s">"PAUSE_ALL"</span>}[msg.wParam])</code></pre>
+  <table>
+    <thead><tr><th>Trigger</th><th>Works when</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Global hotkey (<code>RegisterHotKey</code>)</td><td>You're at the VPS desktop, any window focused</td><td>No keyboard hook, so antivirus is less suspicious than with the <code>keyboard</code> library</td></tr>
+      <tr><td>Red button in the UI</td><td>The UI is visible</td><td>Big and obvious, also bound to Esc+Esc</td></tr>
+      <tr><td>Telegram <code>/exitall</code></td><td>Anywhere: phone, while RDP is closed</td><td>Restricted to the owner's user ID. Also <code>/status</code>, <code>/screenshot</code>, <code>/start</code>, <code>/kill</code>.</td></tr>
+      <tr><td>HTTP <code>POST 127.0.0.1:8765/exit-all</code></td><td>Local scripts or a Stream Deck</td><td>Needs a token. Never bound to a public interface.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ 19 BUILD ============================ -->
+<section id="build">
+  <h2><span class="n">19</span>Packaging &amp; delivery</h2>
+  <p class="kicker">"A single executable for a fresh Windows VPS" means nothing needs installing.</p>
+  <div class="filetag">build.ps1</div>
+<pre><code><span class="c"># Preferred: Nuitka standalone folder → zip (fewest AV false positives, fast start)</span>
+python -m nuitka run.py --standalone --enable-plugin=pyside6 `
+  --windows-console-mode=disable `
+  --windows-icon-from-ico=assets/icon.ico --output-filename=ProTankiCommander.exe `
+  --output-dir=dist
+Compress-Archive dist/main.dist/* dist/ProTankiCommander.zip
+
+<span class="c"># Alternative: one-file exe (simpler to send, slower start, more AV flags)</span>
+pyinstaller run.py --windowed --noupx -n ProTankiCommander      # what build.ps1 uses (one-folder)</code></pre>
+  <div class="grid2">
+    <div class="card"><h4>The delivered zip contains</h4>
+      <ul>
+        <li><code>ProTankiCommander.exe</code> plus its runtime folder</li>
+        <li><code>config/</code> (accounts and presets, ready to edit)</li>
+        <li><code>vps/fix_rdp_minimized.reg</code>, <code>Disconnect-Keep-Running.bat</code></li>
+        <li><code>tools/clone_install.exe</code></li>
+        <li><code>SETUP.md</code> (with screenshots) and <code>README</code></li>
+        <li>The source code, which builds trust and avoids the "is this malware?" worry</li>
+      </ul></div>
+    <div class="card"><h4>Antivirus &amp; SmartScreen</h4>
+      <ul>
+        <li>Packers like UPX make false positives far more likely, so we don't use one.</li>
+        <li>Scan the build on VirusTotal before delivery and include the link.</li>
+        <li>An unsigned exe shows SmartScreen's "More info → Run anyway". This is documented in SETUP.md.</li>
+        <li>Optional upsell: a code-signing certificate.</li>
+      </ul></div>
+  </div>
+</section>
+
+<!-- ============================ 20 LAYOUT ============================ -->
+<section id="layout">
+  <h2><span class="n">20</span>Project layout</h2>
+<div class="tree"><span class="d">protanki-commander/</span>
+├─ <span class="d">app/</span>
+│  ├─ main.py              <span class="cm"># DPI-aware → load config → start engine/hotkey/remote → UI mainloop</span>
+│  ├─ config.py            <span class="cm"># pydantic models, load/save, file-watch hot-reload</span>
+│  ├─ engine.py            <span class="cm"># tick loop, command bus, EXIT_ALL event, supervisor</span>
+│  ├─ account.py           <span class="cm"># AccountFSM (states, transitions, retries, counters)</span>
+│  ├─ triggers.py          <span class="cm"># pixel / pixel_all / pixel_any / template / not + debounce</span>
+│  ├─ sequences.py         <span class="cm"># click / key / wait / verify steps, EXIT-aware waits</span>
+│  ├─ watchdog.py          <span class="cm"># pid/hwnd/stuck/black-frame checks</span>
+│  ├─ <span class="d">win/</span>
+│  │  ├─ dpi.py            <span class="cm"># SetProcessDpiAwarenessContext</span>
+│  │  ├─ windows.py        <span class="cm"># enum, bind, rename, tile, client↔screen, deepest_child</span>
+│  │  ├─ input_post.py     <span class="cm"># PostMessage backend</span>
+│  │  ├─ input_send.py     <span class="cm"># SendInput backend (serialized)</span>
+│  │  ├─ capture.py        <span class="cm"># mss desktop grab + PrintWindow fallback</span>
+│  │  ├─ launcher.py       <span class="cm"># clone install, patch AIR id, Popen, attach mode</span>
+│  │  ├─ display.py        <span class="cm"># ChangeDisplaySettingsEx, session-locked detection</span>
+│  │  └─ hotkeys.py        <span class="cm"># RegisterHotKey thread</span>
+│  ├─ <span class="d">remote/</span> telegram_bot.py  http_api.py
+│  └─ <span class="d">ui/</span> dashboard.py  picker.py  wizard.py  preset_editor.py  log_view.py
+├─ <span class="d">config/</span> accounts.json  <span class="d">presets/</span>gold-rush.json  <span class="d">templates/</span>hud.png
+├─ <span class="d">tools/</span>
+│  ├─ mock_protanki.py     <span class="cm"># demo simulator (§22)</span>
+│  ├─ spike_postmessage.py <span class="cm"># Phase-0: which click variant does AIR accept?</span>
+│  ├─ spike_capture.py     <span class="cm"># Phase-0: mss vs PrintWindow, black-frame test</span>
+│  ├─ dump_windows.py      <span class="cm"># Phase-0: class names / child tree of a window</span>
+│  └─ clone_install.py
+├─ <span class="d">vps/</span> fix_rdp_minimized.reg  Disconnect-Keep-Running.bat  SETUP.md
+├─ <span class="d">logs/</span>
+├─ build.ps1
+└─ requirements.txt       <span class="cm"># pywin32 PySide6 mss numpy psutil pydantic pillow</span></div>
+</section>
+
+<!-- ============================ 21 PLAN ============================ -->
+<section id="plan">
+  <h2><span class="n">21</span>Implementation plan</h2>
+  <p class="kicker">The order is deliberate: remove the biggest unknowns first, then build on solid ground.</p>
+  <div class="phase"><h3>Phase 0: De-risking spike <small>2–3 h · BEFORE anything else</small></h3>
+    <p>Install ProTanki on your PC and use 2–3 of your own throwaway accounts.</p>
+    <table>
+      <thead><tr><th>#</th><th>Question</th><th>How we test</th><th>What the answer decides</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Does a second instance start?</td><td>Run it twice. Then <code>clone_install.py</code> plus the patched ID.</td><td>Launcher plan A/C/D</td></tr>
+        <tr><td>2</td><td>Window class and child tree?</td><td><code>dump_windows.py</code> (EnumChildWindows + GetClassName)</td><td>Which HWND gets the clicks</td></tr>
+        <tr><td>3</td><td>Does a background posted click register?</td><td><code>spike_postmessage.py</code> tries 5 variants on an unfocused window</td><td>Default <code>input_mode</code></td></tr>
+        <tr><td>4</td><td>Can we capture covered or background windows?</td><td><code>spike_capture.py</code>: mss vs PrintWindow(3); black-frame check</td><td>Capture backend</td></tr>
+        <tr><td>5</td><td>Resize to 640×480 / 470×350: does it scale?</td><td>SetWindowPos plus screenshots</td><td>Layout, minimum size</td></tr>
+        <tr><td>6</td><td>RAM and CPU per instance?</td><td>psutil over 2 minutes in the lobby and in battle</td><td>VPS sizing advice</td></tr>
+        <tr><td>7</td><td>How do you exit a battle? Which pixels mean lobby, list and battle?</td><td>Play manually and pick the points</td><td>First real preset</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="phase"><h3>Phase 1: Core engine (headless) <small>~1 day</small></h3>
+    <ul class="check">
+      <li><code>config.py</code> models plus sample files</li>
+      <li><code>windows.py</code>: bind, rename, tile, coordinate conversion, DPI</li>
+      <li><code>input_post.py</code> and <code>input_send.py</code></li>
+      <li><code>capture.py</code> and <code>triggers.py</code> (pixel, pixel_all, template)</li>
+      <li><code>account.py</code> state machine, <code>sequences.py</code>, <code>engine.py</code> tick loop</li>
+      <li>EXIT_ALL event, all three exit modes, hotkey thread</li>
+      <li>Watchdog and logging</li>
+      <li>✅ <b>Milestone:</b> a terminal command runs 3 mock windows: auto-join, verify, Exit All</li>
+    </ul>
+  </div>
+  <div class="phase"><h3>Phase 2: UI <small>~0.5–1 day</small></h3>
+    <ul class="check">
+      <li>Dashboard table with live state badges and counters</li>
+      <li>Top bar: preset dropdown, Start/Pause, CPU/RAM meter, the red EXIT ALL button</li>
+      <li>Coordinate picker overlay with magnifier and Test mode</li>
+      <li>Add Account wizard (launch or attach), remove account</li>
+      <li>Log pane</li>
+      <li>✅ <b>Milestone:</b> everything controllable without touching JSON</li>
+    </ul>
+  </div>
+  <div class="phase"><h3>Phase 3: Demo polish <small>~0.5 day</small></h3>
+    <ul class="check">
+      <li><code>mock_protanki.py</code> with reaction-time readout</li>
+      <li>A real ProTanki preset (from Phase 0, step 7)</li>
+      <li>Telegram <code>/exitall</code> and <code>/status</code></li>
+      <li>Nuitka build plus a VirusTotal scan</li>
+      <li>VPS scripts plus SETUP.md</li>
+      <li>✅ <b>Milestone:</b> ready to record the Loom</li>
+    </ul>
+  </div>
+  <div class="phase"><h3>Phase 4: Optional VPS proof <small>~1 h, about $1</small></h3>
+    <p>Rent an hourly Windows VPS (Vultr or Contabo). Unzip, run, then minimize RDP and run the tscon test. Record a 20-second clip for the Loom: "fresh VPS, nothing installed".</p>
+  </div>
+  <div class="phase"><h3>After hiring <small>~1–2 days</small></h3>
+    <p>Get their exact buttons and screenshots and their VPS specs. Clone the installs, tune the presets on their client and resolution, apply the VPS fixes, run a live demo on their server, and hand over the docs. Then 2 weeks of preset support.</p>
+  </div>
+</section>
+
+<!-- ============================ 22 DEMO ============================ -->
+<section id="demo">
+  <h2><span class="n">22</span>Demo strategy &amp; mock simulator</h2>
+  <p class="kicker">Real windows prove it works on the actual game. The mock proves it scales to 10 accounts, with numbers on screen.</p>
+  <div class="grid2">
+    <div class="card"><h4>Real ProTanki · 2–3 windows</h4>
+      <ul>
+        <li>Pick the real green Play button live, on camera</li>
+        <li>A real join and a real Exit All</li>
+        <li>Proves the AIR input and capture path work</li>
+        <li>Use throwaway accounts (ToS)</li>
+      </ul></div>
+    <div class="card"><h4><code>mock_protanki.py</code> · 6–8 windows</h4>
+      <ul>
+        <li>About 150 lines of Tkinter. It copies the lobby layout, with a dark UI, a battle list and a Play button that is grey until it turns green.</li>
+        <li>Play turns green at a random time between 3 and 20 s. It records <code>t_ready</code>.</li>
+        <li>On click it records <code>t_click</code> and shows <b>"reaction 63 ms"</b> in large text, then switches to an IN BATTLE screen with a timer.</li>
+        <li>Esc opens a menu with "Exit battle", which returns to the lobby.</li>
+        <li>It counts misses: the button was green for more than 1 s without a click.</li>
+        <li><code>--name A --seed 7</code> gives deterministic takes for recording.</li>
+      </ul></div>
+  </div>
+  <div class="callout good"><span class="t">The money shot</span>
+    <p>Nine windows tiled. Play buttons light up at random, and every window jumps into battle within about 60–90 ms. The dashboard counters show <b>0 missed</b>.</p>
+    <p>Then press <b>Ctrl+Alt+X</b>: every window is out together, and the log says <b>"EXIT_ALL … all in lobby after 412 ms"</b>. Cut to Task Manager: <b>~180 MB, about 1–2% of the machine's CPU</b>.</p>
+  </div>
+  <div class="callout warn"><span class="t">Be transparent</span>
+    <p>Say on camera: "this is a simulator I built to stress-test 10 accounts without 10 real clients". Clients trust honesty, and it makes you look methodical, not like you're faking it.</p>
+  </div>
+</section>
+
+<!-- ============================ 23 LOOM ============================ -->
+<section id="loom">
+  <h2><span class="n">23</span>Loom script (5:00)</h2>
+  <p class="kicker">Have everything already running at 0:00. Show it working; don't show code.</p>
+  <table>
+    <thead><tr><th>Time</th><th>On screen</th><th>Say (roughly)</th></tr></thead>
+    <tbody>
+      <tr><td>0:00–0:20</td><td>Dashboard with all accounts already running and badges changing</td><td>"Hi! I read your post and built a working prototype before applying. Here it is controlling 9 ProTanki accounts on one machine."</td></tr>
+      <tr><td>0:20–1:20</td><td>Real ProTanki: Pick coordinate on the green Play button → save → Start → it joins</td><td>"Click positions aren't hard-coded. You pick them right on the game. It remembers the position and the button's colour, clicks within milliseconds when it lights up, then checks the click worked."</td></tr>
+      <tr><td>1:20–2:30</td><td>Mock windows: random Play buttons, every account joins, reaction times, 0 missed</td><td>"To stress-test 10 accounts I built a simulator of the lobby. Reaction time is about 60–90 ms, with zero missed clicks, and every click is verified and retried."</td></tr>
+      <tr><td>2:30–3:10</td><td>Ctrl+Alt+X: every window exits. The log shows ~0.4 s. Then Telegram /exitall from a phone.</td><td>"Your instant exit: a hotkey, this red button, or Telegram from your phone. Every account is out in under a second, and anything stuck is force-closed."</td></tr>
+      <tr><td>3:10–3:50</td><td>Add Account wizard, accounts.json, preset switch, stop and start one account</td><td>"Adding or removing an account takes 10 seconds. If the game updates, re-pick a button in a minute."</td></tr>
+      <tr><td>3:50–4:30</td><td>Task Manager (~180 MB, ~1–2% CPU), the RDP fix scripts, optional fresh-VPS clip</td><td>"One lightweight process, so your VPS won't slow down. I've also solved the classic problem where automation stops when you minimize Remote Desktop."</td></tr>
+      <tr><td>4:30–5:00</td><td>Face cam or dashboard</td><td>"I'll tune it to your exact buttons and VPS, deliver one exe with a setup guide, and do a live demo on your server. A few quick questions are in my proposal. Thanks!"</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ 24 PROPOSAL ============================ -->
+<section id="proposal">
+  <h2><span class="n">24</span>Proposal text</h2>
+  <div class="quote" id="proposalText">
+    <p>Hi! I've already built a working ProTanki multi-account tool for exactly this. Here's a 5-min demo of it controlling 9 accounts: <b>[Loom link]</b></p>
+    <p>What you'll see:<br>
+    • Joins as soon as the Play button lights up (~60–90 ms), and checks every click so none are missed<br>
+    • <b>Exit All</b> in under 1 second: hotkey, red button, or Telegram from your phone<br>
+    • Pick click positions directly on the game window and save them as presets<br>
+    • One lightweight process (~20% of a single CPU core for 8 accounts), so it won't slow the VPS. Runs from one exe on a fresh Windows VPS.<br>
+    • Fixes the RDP-minimized/disconnected problem that breaks most clickers on VPS<br>
+    • Add or remove accounts in seconds, plus a written setup guide</p>
+    <p>I'll tune it to your exact buttons and VPS, then do a live demo on your server. 3–4 days.</p>
+    <p>Quick questions:<br>
+    1. What signals "queue opens" for you: the Play button turning green, a new battle in the list, or a gold-box drop?<br>
+    2. Which buttons/sequence exactly? A screenshot would help.<br>
+    3. VPS specs (CPU/RAM/GPU) and Windows version?<br>
+    4. Should "exit" mean leaving the battle, or closing the client completely?</p>
+    <p><i>(You're responsible for using automation within ProTanki's rules.)</i></p>
+  </div>
+  <button class="copy" style="position:static" onclick="navigator.clipboard.writeText(document.getElementById('proposalText').innerText);this.textContent='Copied ✓'">Copy proposal</button>
+  <p style="margin-top:12px"><b>Bid:</b> $400 fixed. Optional milestones: core tool $250, then VPS setup and live demo $150. Offer 2 weeks of free preset fixes.</p>
+</section>
+
+<!-- ============================ 25 RISKS ============================ -->
+<section id="risks">
+  <h2><span class="n">25</span>Risks &amp; mitigations</h2>
+  <table>
+    <thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>AIR single-instance lock</td><td>High</td><td>High</td><td>Folder clone with patched app-id. Fallbacks: Sandboxie, attach mode, separate users.</td></tr>
+      <tr><td>AIR ignores posted clicks</td><td>Medium</td><td>Medium</td><td>Try 5 variants, then fall back automatically to serialized SendInput (~0.4 s for 10 accounts)</td></tr>
+      <tr><td>RDP minimized or closed stops rendering</td><td>Certain (if unhandled)</td><td>High</td><td>.reg fix, tscon script, black-frame detection with an alert, VNC option</td></tr>
+      <tr><td>Resolution or DPI drift</td><td>Medium</td><td>Medium</td><td>DPI-aware process, exact client size, ratio coordinates, forced display mode</td></tr>
+      <tr><td>Game update moves buttons</td><td>Medium</td><td>Low</td><td>Presets are data: re-pick in about 1 minute. Template triggers tolerate small shifts.</td></tr>
+      <tr><td>VPS too weak for 10 clients</td><td>Medium</td><td>High</td><td>Benchmark in Phase 0, give sizing advice, lowest graphics, CPU affinity</td></tr>
+      <tr><td>AV / SmartScreen flags the exe</td><td>Medium</td><td>Low</td><td>Nuitka, no UPX, VirusTotal link, source included, optional signing</td></tr>
+      <tr><td>Accounts banned (ToS)</td><td>Client's call</td><td>Client's</td><td>A neutral disclaimer. No evasion features. Optional human-like timing jitter is off by default.</td></tr>
+      <tr><td>A false trigger joins the wrong battle</td><td>Low</td><td>Medium</td><td>Multi-pixel AND checks, optional 2-frame debounce, Test mode in the picker</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ 26 GLOSSARY ============================ -->
+<section id="glossary">
+  <h2><span class="n">26</span>Glossary</h2>
+  <table>
+    <thead><tr><th>Term</th><th>Plain-English meaning</th></tr></thead>
+    <tbody>
+      <tr><td><b>HWND</b></td><td>"Window handle": Windows' ID number for a window. Everything we do to a window uses it.</td></tr>
+      <tr><td><b>PID</b></td><td>Process ID: Windows' ID number for a running program. We use it to find its window and to kill it.</td></tr>
+      <tr><td><b>PostMessage</b></td><td>Drops a message (such as "mouse pressed at x,y") into a window's mailbox without waiting. It's how we click without moving the mouse.</td></tr>
+      <tr><td><b>SendInput</b></td><td>Simulates the real mouse or keyboard. It only reaches the window in front.</td></tr>
+      <tr><td><b>Client area</b></td><td>The inside of a window, where the game draws, excluding the title bar and borders.</td></tr>
+      <tr><td><b>ROI</b></td><td>"Region of interest": the small rectangle of pixels we actually check.</td></tr>
+      <tr><td><b>Trigger</b></td><td>A yes/no question answered from pixels, e.g. "is the Play button green?"</td></tr>
+      <tr><td><b>Template matching</b></td><td>Finding a small saved picture inside a bigger image (OpenCV).</td></tr>
+      <tr><td><b>Debounce</b></td><td>Requiring a signal twice in a row before acting, to ignore flickers.</td></tr>
+      <tr><td><b>State machine</b></td><td>A model where each account is in one named state and moves between states by clear rules.</td></tr>
+      <tr><td><b>Tick</b></td><td>One cycle of the engine loop (about every 40 ms).</td></tr>
+      <tr><td><b>DPI awareness</b></td><td>Telling Windows "give me real pixels" so display scaling doesn't distort coordinates.</td></tr>
+      <tr><td><b>Adobe AIR</b></td><td>Adobe's desktop runtime for Flash apps. ProTanki's Windows client runs on it.</td></tr>
+      <tr><td><b>App ID</b></td><td>AIR's unique name for an app. Only one instance per ID can run, which is why we clone.</td></tr>
+      <tr><td><b>tscon</b></td><td>A Windows command that moves a Remote Desktop session to the physical "console", so it stays unlocked and drawing.</td></tr>
+      <tr><td><b>UIPI</b></td><td>A Windows security rule: a normal program can't send input to an Administrator program.</td></tr>
+      <tr><td><b>Nuitka / PyInstaller</b></td><td>Tools that turn a Python program into a Windows .exe, so Python doesn't need installing.</td></tr>
+      <tr><td><b>Watchdog</b></td><td>A background check that notices crashes or stuck states and fixes them.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ 27 SOURCES ============================ -->
+<section id="sources">
+  <h2><span class="n">27</span>Sources</h2>
+  <div class="grid2">
+  <div>
+  <h4>ProTanki</h4>
+  <ul>
+    <li><a href="https://pro-tanki.online" target="_blank" rel="noopener">pro-tanki.online</a>: official site and installer</li>
+    <li><a href="https://pro-tanki.online/en/game-rules" target="_blank" rel="noopener">Game rules</a></li>
+    <li><a href="https://wiki.pro-tanki.online/en/Lobby" target="_blank" rel="noopener">Wiki: Lobby</a> · <a href="https://wiki.pro-tanki.online/en/Battles" target="_blank" rel="noopener">Battles</a> · <a href="https://wiki.pro-tanki.online/en/Updates" target="_blank" rel="noopener">Updates</a> · <a href="https://wiki.pro-tanki.online/en/Crystal_boxes" target="_blank" rel="noopener">Crystal boxes</a></li>
+    <li><a href="https://github.com/protanki-re/client-launcher" target="_blank" rel="noopener">protanki-re/client-launcher</a>: unique AIR app-id per client</li>
+    <li><a href="https://github.com/TheEntropyShard/PTLauncher" target="_blank" rel="noopener">PTLauncher</a> · <a href="https://github.com/Assasans/protanki-utils" target="_blank" rel="noopener">protanki-utils</a> · <a href="https://github.com/topics/protanki" target="_blank" rel="noopener">GitHub topic: protanki</a></li>
+    <li><a href="https://help.adobe.com/en_US/as3/dev/WS5b3ccc516d4fbf351e63e3d118676a5d46-8000.html" target="_blank" rel="noopener">Adobe: AIR single-instance behaviour</a></li>
+  </ul>
+  </div>
+  <div>
+  <h4>Windows automation</h4>
+  <ul>
+    <li><a href="https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput" target="_blank" rel="noopener">MS: SendInput</a> · <a href="https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey" target="_blank" rel="noopener">RegisterHotKey</a></li>
+    <li><a href="https://learn.microsoft.com/en-us/windows/win32/hidpi/setting-the-default-dpi-awareness-for-a-process" target="_blank" rel="noopener">MS: DPI awareness</a></li>
+    <li><a href="https://support.smartbear.com/testcomplete/docs/testing-with/running/via-rdp/in-minimized-window.html" target="_blank" rel="noopener">SmartBear: minimized RDP</a> · <a href="https://support.smartbear.com/testcomplete/docs/testing-with/running/via-rdp/keeping-computer-unlocked.html" target="_blank" rel="noopener">keeping unlocked (tscon)</a></li>
+    <li><a href="https://docs.uipath.com/robot/standalone/2022.4/admin-guide/executing-tasks-in-a-minimized-rdp-window" target="_blank" rel="noopener">UiPath: minimized RDP</a></li>
+    <li><a href="https://webrtc.googlesource.com/src/+/f89110d67902e787f6745ad2b52f7f09fc808512" target="_blank" rel="noopener">WebRTC: PW_RENDERFULLCONTENT</a></li>
+    <li><a href="https://github.com/ra1nty/DXcam" target="_blank" rel="noopener">DXcam</a> · <a href="https://pypi.org/project/windows-capture" target="_blank" rel="noopener">windows-capture</a> · <a href="https://github.com/itsmikethetech/Virtual-Display-Driver" target="_blank" rel="noopener">Virtual Display Driver</a></li>
+    <li><a href="https://dev.to/weisshufer/from-pyinstaller-to-nuitka-convert-python-to-exe-without-false-positives-19jf" target="_blank" rel="noopener">PyInstaller → Nuitka (AV false positives)</a></li>
+  </ul>
+  </div>
+  </div>
+  <p class="cap" style="margin-top:20px">Latency and RAM figures are engineering estimates until they're measured in Phase 0. Items marked TEST are deliberately unverified.</p>
+</section>
+</main>
+</div>
+
+<script>
+// copy buttons on code blocks
+document.querySelectorAll('pre').forEach(pre=>{
+  const b=document.createElement('button');b.className='copy';b.textContent='Copy';
+  b.onclick=()=>{navigator.clipboard.writeText(pre.innerText.replace(/^Copy\n?/,'')).then(()=>{b.textContent='Copied ✓';setTimeout(()=>b.textContent='Copy',1200)})};
+  pre.appendChild(b);
+});
+// scrollspy
+const links=[...document.querySelectorAll('nav.toc a')];
+const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));const a=map.get(e.target.id);if(a)a.classList.add('active')}})},{rootMargin:'-20% 0px -70% 0px'});
+document.querySelectorAll('main section').forEach(s=>obs.observe(s));
+links.forEach(a=>a.addEventListener('click',()=>document.querySelector('nav.toc').classList.remove('open')));
+// theme toggle
+const root=document.documentElement;let t=null;try{t=localStorage.getItem('pt-theme')}catch(e){}
+if(t)root.dataset.theme=t;
+document.getElementById('themeBtn').onclick=()=>{
+  const cur=root.dataset.theme||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
+  root.dataset.theme=cur==='dark'?'light':'dark';try{localStorage.setItem('pt-theme',root.dataset.theme)}catch(e){}
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+.venv/
+build/
+dist/
+logs/
+recordings/
+__pycache__/
+*.pyc
+*.tmp
+.claude/
+LOOM_AND_PROPOSAL.md
+UPWORK_PORTFOLIO.md
+*.spec

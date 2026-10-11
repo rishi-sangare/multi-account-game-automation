@@ -1,0 +1,33 @@
+{
+  "description": "ProTanki mock client (mock/mock_protanki.py). Lobby -> PLAY turns green -> battle -> Esc menu -> Exit battle.",
+  "base_resolution": [640, 480],
+  "points": {
+    "play_btn":   { "x": 0.8531, "y": 0.8979 },
+    "play_left":  { "x": 0.7531, "y": 0.8750 },
+    "play_right": { "x": 0.9563, "y": 0.9250 },
+    "topbar":     { "x": 0.4200, "y": 0.0400 },
+    "list_head":  { "x": 0.5156, "y": 0.1042 },
+    "team_blue":  { "x": 0.0938, "y": 0.0625 },
+    "team_red":   { "x": 0.1938, "y": 0.0625 },
+    "exit_btn":   { "x": 0.5000, "y": 0.5583 },
+    "resume_btn": { "x": 0.5000, "y": 0.4542 }
+  },
+  "triggers": {
+    "join_ready": { "type": "pixels", "mode": "all", "debounce": 1, "checks": [
+      { "at": "play_left",  "rgb": [92, 190, 70], "tol": 28 },
+      { "at": "play_right", "rgb": [92, 190, 70], "tol": 28 } ] },
+    "in_battle":  { "type": "pixels", "mode": "all", "debounce": 1, "checks": [
+      { "at": "team_blue", "rgb": [46, 112, 196], "tol": 28 },
+      { "at": "team_red",  "rgb": [196, 64, 52],  "tol": 28 } ] },
+    "lobby":      { "type": "pixels", "mode": "all", "debounce": 2, "checks": [
+      { "at": "topbar",    "rgb": [31, 39, 35], "tol": 10 },
+      { "at": "list_head", "rgb": [23, 29, 26], "tol": 10 } ] }
+  },
+  "sequences": {
+    "join":     [ { "click": "play_btn" } ],
+    "exit":     [ { "key": "ESC" }, { "wait_ms": 120 }, { "click": "exit_btn" } ],
+    "anti_afk": [ { "key": "W", "hold_ms": 80 } ],
+    "recover":  [ { "key": "ESC" } ]
+  },
+  "timeouts": { "join_s": 4, "launch_s": 30, "connect_s": 30, "exit_retry_s": 0.7, "stuck_s": 120, "anti_afk_every_s": 120 }
+}

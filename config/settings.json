@@ -1,0 +1,31 @@
+{
+  "poll_ms": 40,
+  "verify_ms": 220,
+  "max_retries": 3,
+  "exit_mode": "leave_battle",
+  "auto_relaunch": true,
+  "rename_windows": false,
+  "raise_covered": true,
+  "anti_afk": false,
+  "layout": {
+    "cols": 3,
+    "client_w": 320,
+    "client_h": 240,
+    "gap": 4,
+    "origin": [
+      0,
+      0
+    ],
+    "auto_tile": true
+  },
+  "hotkeys": {
+    "exit_all": "ctrl+alt+x",
+    "kill_all": "ctrl+alt+k",
+    "pause_all": "ctrl+alt+p"
+  },
+  "telegram": {
+    "enabled": false,
+    "token": "",
+    "allowed_user_id": 0
+  }
+}

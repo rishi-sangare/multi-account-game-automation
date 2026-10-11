@@ -1,0 +1,24 @@
+{
+  "description": "Real ProTanki client. Placeholder positions - re-pick every point and colour with 'Pick point' on your own client before use.",
+  "base_resolution": [1024, 768],
+  "points": {
+    "battles_btn": { "x": 0.5120, "y": 0.0310 },
+    "play_btn":    { "x": 0.8420, "y": 0.9050 },
+    "topbar":      { "x": 0.4000, "y": 0.0200 },
+    "hud":         { "x": 0.0500, "y": 0.0400 },
+    "exit_btn":    { "x": 0.5000, "y": 0.5600 }
+  },
+  "triggers": {
+    "join_ready": { "type": "pixels", "checks": [ { "at": "play_btn", "rgb": [96, 200, 64], "tol": 22 } ] },
+    "in_battle":  { "type": "pixels", "checks": [ { "at": "hud", "rgb": [40, 110, 200], "tol": 24 } ] },
+    "lobby":      { "type": "pixels", "debounce": 2, "checks": [ { "at": "topbar", "rgb": [30, 38, 34], "tol": 12 } ] }
+  },
+  "sequences": {
+    "open_list": [ { "click": "battles_btn" } ],
+    "join":      [ { "click": "play_btn" } ],
+    "exit":      [ { "key": "ESC" }, { "wait_ms": 200 }, { "click": "exit_btn" } ],
+    "anti_afk":  [ { "key": "W", "hold_ms": 80 } ],
+    "recover":   [ { "key": "ESC" }, { "wait_ms": 300 }, { "key": "ESC" } ]
+  },
+  "timeouts": { "join_s": 8, "launch_s": 90, "connect_s": 120, "exit_retry_s": 1.5, "stuck_s": 180, "anti_afk_every_s": 120 }
+}

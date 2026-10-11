@@ -1,0 +1,14 @@
+{
+  "accounts": [
+    { "id": "acc1", "name": "IronVolk",  "exe": "{mock}", "preset": "mock-lobby", "slot": 0 },
+    { "id": "acc2", "name": "Sandstorm", "exe": "{mock}", "preset": "mock-lobby", "slot": 1 },
+    { "id": "acc3", "name": "Kestrel",   "exe": "{mock}", "preset": "mock-lobby", "slot": 2 },
+    { "id": "acc4", "name": "GreyWolf",  "exe": "{mock}", "preset": "mock-lobby", "slot": 3 },
+    { "id": "acc5", "name": "Hornet88",  "exe": "{mock}", "preset": "mock-lobby", "slot": 4 },
+    { "id": "acc6", "name": "Tundra",    "exe": "{mock}", "preset": "mock-lobby", "slot": 5 },
+    { "id": "acc7", "name": "Mamba",     "exe": "{mock}", "preset": "mock-lobby", "slot": 6 },
+    { "id": "acc8", "name": "Ruslan_T",  "exe": "{mock}", "preset": "mock-lobby", "slot": 7 },
+    { "id": "real1", "name": "ProTanki (real)", "enabled": false, "mode": "attach", "window_title": "ProTanki",
+      "preset": "protanki", "slot": 8 }
+  ]
+}

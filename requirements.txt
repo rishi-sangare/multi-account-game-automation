@@ -1,0 +1,7 @@
+PySide6>=6.7
+pywin32>=306
+mss>=9
+numpy>=1.26
+psutil>=5.9
+pydantic>=2.6
+pillow>=10
