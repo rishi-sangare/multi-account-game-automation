@@ -97,3 +97,7 @@ tools/                headless_run, dump_windows, spike_input, spike_capture, cl
 vps/                  RDP fixes for running on a VPS
 docs/index.html       research + architecture
 ```
+
+## Credits
+
+Built together by [Rishi Sangare](https://github.com/rishi-sangare) and [Vedant Lotankar](https://github.com/vedantLotankar), as a roughly 50/50 split of the work.
